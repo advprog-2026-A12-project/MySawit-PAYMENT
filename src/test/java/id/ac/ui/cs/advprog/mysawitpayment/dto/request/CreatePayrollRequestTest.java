@@ -2,12 +2,13 @@ package id.ac.ui.cs.advprog.mysawitpayment.dto.request;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class CreatePayrollRequestTest {
 
     @Test
-    void settersAndGetters_workCorrectly() {
+    void settersAndGettersWorkCorrectly() {
         CreatePayrollRequest request = new CreatePayrollRequest();
 
         request.setUserId(10L);
@@ -22,7 +23,7 @@ class CreatePayrollRequestTest {
     }
 
     @Test
-    void defaultConstructor_createsObject() {
+    void defaultConstructorCreatesObject() {
         CreatePayrollRequest request = new CreatePayrollRequest();
         assertNotNull(request);
     }

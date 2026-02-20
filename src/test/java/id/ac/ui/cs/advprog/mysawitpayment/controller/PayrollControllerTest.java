@@ -56,7 +56,7 @@ class PayrollControllerTest {
     }
 
     @Test
-    void createPayroll_returnsOk() {
+    void createPayrollReturnsOk() {
         when(payrollService.createPayroll(request)).thenReturn(response);
 
         ResponseEntity<PayrollResponse> result =
@@ -70,7 +70,7 @@ class PayrollControllerTest {
     }
 
     @Test
-    void getPayrollByUser_returnsList() {
+    void getPayrollByUserReturnsList() {
         when(payrollService.getPayrollByUser(10L))
                 .thenReturn(List.of(response));
 
@@ -85,7 +85,7 @@ class PayrollControllerTest {
     }
 
     @Test
-    void approvePayroll_returnsOk() {
+    void approvePayrollReturnsOk() {
         ResponseEntity<Void> result =
                 payrollController.approve(1L);
 
@@ -95,7 +95,7 @@ class PayrollControllerTest {
     }
 
     @Test
-    void rejectPayroll_returnsOk() {
+    void rejectPayrollReturnsOk() {
         ResponseEntity<Void> result =
                 payrollController.reject(1L, "invalid");
 

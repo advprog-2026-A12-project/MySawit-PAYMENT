@@ -15,8 +15,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class PayrollServiceTest {
@@ -43,7 +48,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void createPayroll_success() {
+    void createPayrollSuccess() {
         CreatePayrollRequest request = new CreatePayrollRequest();
         request.setUserId(10L);
         request.setKilogram(100.0);
@@ -60,7 +65,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void getPayrollByUser_success() {
+    void getPayrollByUserSuccess() {
         when(payrollRepository.findByUserId(10L)).thenReturn(List.of(payroll));
 
         var result = payrollService.getPayrollByUser(10L);
@@ -70,7 +75,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void approvePayroll_success() {
+    void approvePayrollSuccess() {
         when(payrollRepository.findById(1L)).thenReturn(Optional.of(payroll));
 
         payrollService.approvePayroll(1L);
@@ -80,7 +85,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void approvePayroll_notFound() {
+    void approvePayrollNotFound() {
         when(payrollRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,
@@ -88,7 +93,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void rejectPayroll_success() {
+    void rejectPayrollSuccess() {
         when(payrollRepository.findById(1L)).thenReturn(Optional.of(payroll));
 
         payrollService.rejectPayroll(1L, "invalid");
@@ -98,7 +103,7 @@ class PayrollServiceTest {
     }
 
     @Test
-    void rejectPayroll_notFound() {
+    void rejectPayrollNotFound() {
         when(payrollRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class,

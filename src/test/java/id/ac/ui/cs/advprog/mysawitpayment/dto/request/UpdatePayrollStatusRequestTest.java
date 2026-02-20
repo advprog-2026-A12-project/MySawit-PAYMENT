@@ -2,12 +2,13 @@ package id.ac.ui.cs.advprog.mysawitpayment.dto.request;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class UpdatePayrollStatusRequestTest {
 
     @Test
-    void settersAndGetters_workCorrectly() {
+    void settersAndGettersWorkCorrectly() {
         UpdatePayrollStatusRequest request = new UpdatePayrollStatusRequest();
 
         request.setReason("invalid data");
@@ -16,7 +17,7 @@ class UpdatePayrollStatusRequestTest {
     }
 
     @Test
-    void defaultConstructor_createsObject() {
+    void defaultConstructorCreatesObject() {
         UpdatePayrollStatusRequest request = new UpdatePayrollStatusRequest();
         assertNotNull(request);
     }

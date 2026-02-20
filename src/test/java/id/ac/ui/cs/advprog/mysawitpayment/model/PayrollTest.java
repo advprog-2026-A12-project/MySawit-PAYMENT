@@ -5,12 +5,13 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class PayrollTest {
 
     @Test
-    void payroll_settersAndGetters_workCorrectly() {
+    void payrollSettersAndGettersWorkCorrectly() {
         Payroll payroll = new Payroll();
 
         LocalDateTime now = LocalDateTime.now();
@@ -35,13 +36,13 @@ class PayrollTest {
     }
 
     @Test
-    void payroll_defaultConstructor_createsObject() {
+    void payrollDefaultConstructorCreatesObject() {
         Payroll payroll = new Payroll();
         assertNotNull(payroll);
     }
 
     @Test
-    void payrollStatus_enumValues_exist() {
+    void payrollStatusEnumValuesExist() {
         assertEquals("PENDING", PayrollStatus.PENDING.name());
         assertEquals("ACCEPTED", PayrollStatus.ACCEPTED.name());
         assertEquals("REJECTED", PayrollStatus.REJECTED.name());

@@ -2,12 +2,13 @@ package id.ac.ui.cs.advprog.mysawitpayment.model;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class WalletTest {
 
     @Test
-    void wallet_settersAndGetters_workCorrectly() {
+    void walletSettersAndGettersWorkCorrectly() {
         Wallet wallet = new Wallet();
 
         wallet.setId(1L);
@@ -20,7 +21,7 @@ class WalletTest {
     }
 
     @Test
-    void wallet_defaultConstructor_createsObject() {
+    void walletDefaultConstructorCreatesObject() {
         Wallet wallet = new Wallet();
         assertNotNull(wallet);
     }

@@ -5,12 +5,13 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PayrollResponseTest {
 
     @Test
-    void settersAndGetters_workCorrectly() {
+    void settersAndGettersWorkCorrectly() {
         PayrollResponse response = new PayrollResponse();
 
         LocalDateTime now = LocalDateTime.now();
@@ -35,7 +36,7 @@ class PayrollResponseTest {
     }
 
     @Test
-    void defaultConstructor_createsObject() {
+    void defaultConstructorCreatesObject() {
         PayrollResponse response = new PayrollResponse();
         assertNotNull(response);
     }
