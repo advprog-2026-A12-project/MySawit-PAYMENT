@@ -6,6 +6,7 @@ plugins {
 	id("org.springframework.boot") version "4.0.2"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("org.sonarqube") version "7.2.2.6593"
+	id("checkstyle")
 }
 
 group = "id.ac.ui.cs.advprog"
@@ -53,6 +54,11 @@ dependencies {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+}
+
+checkstyle {
+	toolVersion = "10.12.4"
+	configFile = file("${rootDir}/config/checkstyle/checkstyle.xml")
 }
 
 jacoco {

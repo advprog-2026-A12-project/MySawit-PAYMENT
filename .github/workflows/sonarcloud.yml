@@ -34,8 +34,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build + test + coverage
-        run: ./gradlew test jacocoTestReport
+      - name: Build + Test + Lint + Coverage
+        run: ./gradlew clean check jacocoTestReport
 
       - name: Analyze with SonarCloud
         run: ./gradlew sonar
