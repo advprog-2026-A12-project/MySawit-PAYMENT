@@ -31,18 +31,18 @@ public class PayrollController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<PayrollResponse>> getByUser(@PathVariable String userId) {
+    public ResponseEntity<List<PayrollResponse>> getByUser(@PathVariable Long userId) {
         return ResponseEntity.ok(payrollService.getPayrollByUser(userId));
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<Void> approve(@PathVariable String id) {
+    public ResponseEntity<Void> approve(@PathVariable Long id) {
         payrollService.approvePayroll(id);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<Void> reject(@PathVariable String id, @RequestParam String reason) {
+    public ResponseEntity<Void> reject(@PathVariable Long id, @RequestParam String reason) {
         payrollService.rejectPayroll(id, reason);
         return ResponseEntity.ok().build();
     }

@@ -9,9 +9,9 @@ public interface PayrollService {
 
     PayrollResponse createPayroll(CreatePayrollRequest request);
 
-    List<PayrollResponse> getPayrollByUser(String userId);
+    List<PayrollResponse> getPayrollByUser(Long userId);
 
-    void approvePayroll(String payrollId);
+    void approvePayroll(Long payrollId);
 
-    void rejectPayroll(String payrollId, String reason);
+    void rejectPayroll(Long payrollId, String reason);
 }
