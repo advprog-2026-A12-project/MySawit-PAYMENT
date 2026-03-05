@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 
@@ -10,7 +11,7 @@ import java.util.UUID;
 
 public interface PayrollService {
 
-    Page<Payroll> getMyPayrolls(
+    Page<PayrollResponse> getMyPayrolls(
             UUID userId,
             PayrollStatus status,
             OffsetDateTime startDate,
@@ -19,11 +20,11 @@ public interface PayrollService {
             int size
     );
 
-    Payroll getPayrollById(UUID payrollId);
+    PayrollResponse getPayrollById(UUID payrollId);
 
-    Payroll approvePayroll(UUID payrollId, UUID adminId);
+    PayrollResponse approvePayroll(UUID payrollId, UUID adminId);
 
-    Payroll rejectPayroll(UUID payrollId, UUID adminId, String reason);
+    PayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason);
 
-    Payroll createPayroll(Payroll payroll);
+    PayrollResponse createPayroll(Payroll payroll);
 }

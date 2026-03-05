@@ -1,15 +1,17 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
-
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -19,58 +21,104 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayrollRepository payrollRepository;
 
     @Override
-    public Payroll createPayroll(Payroll payroll) {
-        return payrollRepository.save(payroll);
-    }
+    public Page<PayrollResponse> getMyPayrolls(
+            UUID userId,
+            PayrollStatus status,
+            OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            int page,
+            int size
+    ) {
 
-    @Override
-    public List<Payroll> getAllPayrolls() {
-        return payrollRepository.findAll();
-    }
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by("createdAt").descending()
+        );
 
-    @Override
-    public List<Payroll> getMyPayrolls(UUID userId) {
-        return payrollRepository.findByUserId(userId);
-    }
+        Page<Payroll> payrollPage;
 
-    @Override
-    public Payroll getPayrollById(UUID payrollId) {
-        return payrollRepository.findById(payrollId)
-                .orElseThrow(() ->
-                        new PayrollNotFoundException("Payroll " + payrollId + " not found")
-                );
-    }
-
-    @Override
-    public Payroll acceptPayroll(UUID payrollId, UUID adminId) {
-
-        Payroll payroll = getPayrollById(payrollId);
-
-        if (payroll.getStatus() != PayrollStatus.PENDING) {
-            throw new IllegalStateException("Payroll is not in PENDING status");
+        if (status != null) {
+            payrollPage = payrollRepository.findByUserIdAndStatus(userId, status, pageable);
+        } else if (startDate != null && endDate != null) {
+            payrollPage = payrollRepository.findByUserIdAndCreatedAtBetween(
+                    userId,
+                    startDate,
+                    endDate,
+                    pageable
+            );
+        } else {
+            payrollPage = payrollRepository.findByUserId(userId, pageable);
         }
+
+        return payrollPage.map(this::mapToResponse);
+    }
+
+    @Override
+    public PayrollResponse getPayrollById(UUID payrollId) {
+        return mapToResponse(findPayrollOrThrow(payrollId));
+    }
+
+    @Override
+    public PayrollResponse approvePayroll(UUID payrollId, UUID adminId) {
+
+        Payroll payroll = findPayrollOrThrow(payrollId);
+        ensurePending(payroll, payrollId);
 
         payroll.setStatus(PayrollStatus.ACCEPTED);
         payroll.setApprovedBy(adminId);
         payroll.setApprovedAt(OffsetDateTime.now());
 
-        return payrollRepository.save(payroll);
+        return mapToResponse(payrollRepository.save(payroll));
     }
 
     @Override
-    public Payroll rejectPayroll(UUID payrollId, UUID adminId, String rejectionReason) {
+    public PayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason) {
 
-        Payroll payroll = getPayrollById(payrollId);
-
-        if (payroll.getStatus() != PayrollStatus.PENDING) {
-            throw new IllegalStateException("Payroll is not in PENDING status");
-        }
+        Payroll payroll = findPayrollOrThrow(payrollId);
+        ensurePending(payroll, payrollId);
 
         payroll.setStatus(PayrollStatus.REJECTED);
-        payroll.setRejectionReason(rejectionReason);
         payroll.setApprovedBy(adminId);
         payroll.setApprovedAt(OffsetDateTime.now());
+        payroll.setRejectionReason(reason);
 
-        return payrollRepository.save(payroll);
+        return mapToResponse(payrollRepository.save(payroll));
+    }
+
+    @Override
+    public PayrollResponse createPayroll(Payroll payroll) {
+        return mapToResponse(payrollRepository.save(payroll));
+    }
+
+    private Payroll findPayrollOrThrow(UUID payrollId) {
+        return payrollRepository.findById(payrollId)
+                .orElseThrow(() ->
+                        new PayrollNotFoundException("Payroll " + payrollId + " not found"));
+    }
+
+    private void ensurePending(Payroll payroll, UUID payrollId) {
+        if (!PayrollStatus.PENDING.equals(payroll.getStatus())) {
+            throw new PayrollAlreadyProcessedException(
+                    "Payroll " + payrollId + " already processed");
+        }
+    }
+
+    private PayrollResponse mapToResponse(Payroll payroll) {
+
+        PayrollResponse response = new PayrollResponse();
+
+        response.setId(payroll.getId());
+        response.setAmount(payroll.getAmount());
+        response.setKilogram(payroll.getKilogram());
+        response.setRatePerKg(payroll.getRatePerKg());
+        response.setMultiplier(payroll.getMultiplier());
+        response.setStatus(payroll.getStatus().name());
+        response.setReferenceType(payroll.getReferenceType().name());
+        response.setDescription(payroll.getDescription());
+        response.setApprovedAt(payroll.getApprovedAt());
+        response.setCreatedAt(payroll.getCreatedAt());
+
+        return response;
     }
 }
