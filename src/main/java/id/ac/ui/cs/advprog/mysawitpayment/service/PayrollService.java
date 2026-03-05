@@ -1,21 +1,29 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public interface PayrollService {
 
-    Payroll createPayroll(Payroll payroll);
-
-    List<Payroll> getAllPayrolls();
-
-    List<Payroll> getMyPayrolls(UUID userId);
+    Page<Payroll> getMyPayrolls(
+            UUID userId,
+            PayrollStatus status,
+            OffsetDateTime startDate,
+            OffsetDateTime endDate,
+            int page,
+            int size
+    );
 
     Payroll getPayrollById(UUID payrollId);
 
-    Payroll acceptPayroll(UUID payrollId, UUID adminId);
+    Payroll approvePayroll(UUID payrollId, UUID adminId);
 
-    Payroll rejectPayroll(UUID payrollId, UUID adminId, String rejectionReason);
+    Payroll rejectPayroll(UUID payrollId, UUID adminId, String reason);
+
+    Payroll createPayroll(Payroll payroll);
 }
