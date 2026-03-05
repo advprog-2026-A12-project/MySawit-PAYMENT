@@ -4,23 +4,29 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 public interface PayrollRepository extends JpaRepository<Payroll, UUID> {
 
-    List<Payroll> findByUserId(UUID userId);
+    Page<Payroll> findByUserId(UUID userId, Pageable pageable);
 
-    List<Payroll> findByUserIdAndStatus(UUID userId, PayrollStatus status);
-
-    List<Payroll> findByUserIdAndCreatedAtBetween(
+    Page<Payroll> findByUserIdAndStatus(
             UUID userId,
-            OffsetDateTime startDate,
-            OffsetDateTime endDate
+            PayrollStatus status,
+            Pageable pageable
+    );
+
+    Page<Payroll> findByUserIdAndCreatedAtBetween(
+            UUID userId,
+            OffsetDateTime start,
+            OffsetDateTime end,
+            Pageable pageable
     );
 
     Optional<Payroll> findByReferenceTypeAndReferenceIdAndUserId(
@@ -28,5 +34,4 @@ public interface PayrollRepository extends JpaRepository<Payroll, UUID> {
             UUID referenceId,
             UUID userId
     );
-
 }
