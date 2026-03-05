@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.model;
 
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -37,27 +38,29 @@ public class Payroll {
     @Column(nullable = false)
     private UUID userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String userRole;
+    private UserRole userRole;
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal kilogram;
 
-    @Column(nullable = false, precision = 15, scale = 2)
+    @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal ratePerKg;
 
-    @Column(nullable = false, precision = 5, scale = 2)
-    private BigDecimal multiplier;
+    @Builder.Default
+    @Column(nullable = false, precision = 4, scale = 2)
+    private BigDecimal multiplier = new BigDecimal("0.90");
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PayrollStatus status = PayrollStatus.PENDING;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(columnDefinition = "TEXT")
@@ -74,18 +77,38 @@ public class Payroll {
 
     private OffsetDateTime approvedAt;
 
+    @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @Column(nullable = false)
     private OffsetDateTime updatedAt;
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = OffsetDateTime.now();
-        this.updatedAt = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now();
+        this.createdAt = now;
+        this.updatedAt = now;
     }
 
     @PreUpdate
     public void preUpdate() {
         this.updatedAt = OffsetDateTime.now();
+    }
+
+    public boolean isPending() {
+        return this.status == PayrollStatus.PENDING;
+    }
+
+    public void accept(UUID adminId) {
+        this.status = PayrollStatus.ACCEPTED;
+        this.approvedBy = adminId;
+        this.approvedAt = OffsetDateTime.now();
+    }
+
+    public void reject(UUID adminId, String reason) {
+        this.status = PayrollStatus.REJECTED;
+        this.approvedBy = adminId;
+        this.approvedAt = OffsetDateTime.now();
+        this.rejectionReason = reason;
     }
 }
