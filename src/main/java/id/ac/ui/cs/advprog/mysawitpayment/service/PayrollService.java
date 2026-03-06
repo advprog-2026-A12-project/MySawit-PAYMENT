@@ -5,20 +5,16 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public interface PayrollService {
 
-    Page<PayrollResponse> getMyPayrolls(
-            UUID userId,
-            PayrollStatus status,
-            OffsetDateTime startDate,
-            OffsetDateTime endDate,
-            int page,
-            int size
-    );
+    Page<PayrollResponse> getAllPayrolls(Pageable pageable);
+
+    Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable);
 
     PayrollResponse getPayrollById(UUID payrollId);
 
