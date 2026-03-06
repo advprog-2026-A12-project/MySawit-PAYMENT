@@ -1,17 +1,23 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
-import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreatePayrollRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
+import java.util.UUID;
 
 public interface PayrollService {
 
-    PayrollResponse createPayroll(CreatePayrollRequest request);
+    Page<PayrollResponse> getAllPayrolls(Pageable pageable);
 
-    List<PayrollResponse> getPayrollByUser(Long userId);
+    Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable);
 
-    void approvePayroll(Long payrollId);
+    PayrollResponse getPayrollById(UUID payrollId);
 
-    void rejectPayroll(Long payrollId, String reason);
+    PayrollResponse approvePayroll(UUID payrollId, UUID adminId);
+
+    PayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason);
+
+    PayrollResponse createPayroll(Payroll payroll);
 }

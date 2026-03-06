@@ -1,43 +1,51 @@
 package id.ac.ui.cs.advprog.mysawitpayment.dto.response;
 
-import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PayrollResponseTest {
 
     @Test
-    void settersAndGettersWorkCorrectly() {
+    void testGetterSetter() {
+
         PayrollResponse response = new PayrollResponse();
 
-        LocalDateTime now = LocalDateTime.now();
+        UUID id = UUID.randomUUID();
+        BigDecimal amount = new BigDecimal("100000");
+        BigDecimal kilogram = new BigDecimal("50");
+        BigDecimal ratePerKg = new BigDecimal("2000");
+        BigDecimal multiplier = new BigDecimal("0.90");
+        String status = "PENDING";
+        String referenceType = "HARVEST";
+        String description = "Payroll for harvest";
+        OffsetDateTime approvedAt = OffsetDateTime.now();
+        OffsetDateTime createdAt = OffsetDateTime.now();
 
-        response.setId(1L);
-        response.setUserId(10L);
-        response.setKilogram(100.0);
-        response.setAmount(90000.0);
-        response.setStatus(PayrollStatus.PENDING);
-        response.setReferenceId("123");
-        response.setReferenceType("HARVEST");
-        response.setCreatedAt(now);
+        response.setId(id);
+        response.setAmount(amount);
+        response.setKilogram(kilogram);
+        response.setRatePerKg(ratePerKg);
+        response.setMultiplier(multiplier);
+        response.setStatus(status);
+        response.setReferenceType(referenceType);
+        response.setDescription(description);
+        response.setApprovedAt(approvedAt);
+        response.setCreatedAt(createdAt);
 
-        assertEquals(1L, response.getId());
-        assertEquals(10L, response.getUserId());
-        assertEquals(100.0, response.getKilogram());
-        assertEquals(90000.0, response.getAmount());
-        assertEquals(PayrollStatus.PENDING, response.getStatus());
-        assertEquals("123", response.getReferenceId());
-        assertEquals("HARVEST", response.getReferenceType());
-        assertEquals(now, response.getCreatedAt());
-    }
-
-    @Test
-    void defaultConstructorCreatesObject() {
-        PayrollResponse response = new PayrollResponse();
-        assertNotNull(response);
+        assertEquals(id, response.getId());
+        assertEquals(amount, response.getAmount());
+        assertEquals(kilogram, response.getKilogram());
+        assertEquals(ratePerKg, response.getRatePerKg());
+        assertEquals(multiplier, response.getMultiplier());
+        assertEquals(status, response.getStatus());
+        assertEquals(referenceType, response.getReferenceType());
+        assertEquals(description, response.getDescription());
+        assertEquals(approvedAt, response.getApprovedAt());
+        assertEquals(createdAt, response.getCreatedAt());
     }
 }

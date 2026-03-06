@@ -2,22 +2,36 @@ package id.ac.ui.cs.advprog.mysawitpayment.repository;
 
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import java.time.OffsetDateTime;
+import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public interface PayrollRepository extends JpaRepository<Payroll, Long> {
+public interface PayrollRepository extends JpaRepository<Payroll, UUID> {
 
-    List<Payroll> findByUserId(Long userId);
+    Page<Payroll> findByUserId(UUID userId, Pageable pageable);
 
-    List<Payroll> findByUserIdAndStatus(Long userId, PayrollStatus status);
+    Page<Payroll> findByUserIdAndStatus(
+            UUID userId,
+            PayrollStatus status,
+            Pageable pageable
+    );
 
-    List<Payroll> findByUserIdAndCreatedAtBetween(
-            Long userId,
-            LocalDateTime start,
-            LocalDateTime end
+    Page<Payroll> findByUserIdAndCreatedAtBetween(
+            UUID userId,
+            OffsetDateTime start,
+            OffsetDateTime end,
+            Pageable pageable
+    );
+
+    Optional<Payroll> findByReferenceTypeAndReferenceIdAndUserId(
+            ReferenceType referenceType,
+            UUID referenceId,
+            UUID userId
     );
 }

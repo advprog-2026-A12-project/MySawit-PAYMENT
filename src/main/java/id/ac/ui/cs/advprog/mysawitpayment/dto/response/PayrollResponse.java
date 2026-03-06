@@ -1,28 +1,33 @@
 package id.ac.ui.cs.advprog.mysawitpayment.dto.response;
 
-import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
 
 @Getter
 @Setter
 public class PayrollResponse {
 
-    private Long id;
+    private UUID id;
 
-    private Long userId;
+    private BigDecimal amount;
 
-    private Double kilogram;
+    private BigDecimal kilogram;
 
-    private Double amount;
+    private BigDecimal ratePerKg;
 
-    private PayrollStatus status;
+    private BigDecimal multiplier;
 
-    private String referenceId;
+    private String status;
 
     private String referenceType;
 
-    private LocalDateTime createdAt;
+    private String description;
+
+    private OffsetDateTime approvedAt;
+
+    private OffsetDateTime createdAt;
 }
