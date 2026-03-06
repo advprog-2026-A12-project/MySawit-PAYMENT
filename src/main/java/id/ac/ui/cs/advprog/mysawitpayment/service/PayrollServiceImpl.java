@@ -21,34 +21,23 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayrollRepository payrollRepository;
 
     @Override
-    public Page<PayrollResponse> getMyPayrolls(
-            UUID userId,
-            PayrollStatus status,
-            OffsetDateTime startDate,
-            OffsetDateTime endDate,
-            int page,
-            int size
-    ) {
+    public Page<PayrollResponse> getAllPayrolls(Pageable pageable) {
+        return getPayrollsInternal(null, pageable);
+    }
 
-        Pageable pageable = PageRequest.of(
-                page,
-                size,
-                Sort.by("createdAt").descending()
-        );
+    @Override
+    public Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable) {
+        return getPayrollsInternal(userId, pageable);
+    }
+
+    private Page<PayrollResponse> getPayrollsInternal(UUID userId, Pageable pageable) {
 
         Page<Payroll> payrollPage;
 
-        if (status != null) {
-            payrollPage = payrollRepository.findByUserIdAndStatus(userId, status, pageable);
-        } else if (startDate != null && endDate != null) {
-            payrollPage = payrollRepository.findByUserIdAndCreatedAtBetween(
-                    userId,
-                    startDate,
-                    endDate,
-                    pageable
-            );
-        } else {
+        if (userId != null) {
             payrollPage = payrollRepository.findByUserId(userId, pageable);
+        } else {
+            payrollPage = payrollRepository.findAll(pageable);
         }
 
         return payrollPage.map(this::mapToResponse);
