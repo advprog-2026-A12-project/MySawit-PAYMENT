@@ -3,7 +3,7 @@ import org.gradle.testing.jacoco.tasks.JacocoReport
 plugins {
 	java
 	jacoco
-	id("org.springframework.boot") version "4.0.2"
+	id("org.springframework.boot") version "3.3.5"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("org.sonarqube") version "7.2.2.6593"
 	id("checkstyle")
@@ -40,17 +40,32 @@ repositories {
 }
 
 dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-validation")
-	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+
+	implementation("org.springframework.boot:spring-boot-starter-web")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-	compileOnly("org.projectlombok:lombok")
-	developmentOnly("org.springframework.boot:spring-boot-devtools")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+
+	implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+
+	implementation("org.flywaydb:flyway-core")
+	implementation("org.flywaydb:flyway-database-postgresql")
+
+	implementation("me.paulschwarz:spring-dotenv:4.0.0")
+
+	runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+	runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+
 	runtimeOnly("org.postgresql:postgresql")
-	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
-	testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
-	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+
+	developmentOnly("org.springframework.boot:spring-boot-devtools")
+
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("com.h2database:h2")
+
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -74,4 +89,8 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 		html.required = true
 		csv.required = false
 	}
+}
+
+tasks.test {
+	finalizedBy(tasks.jacocoTestReport)
 }
