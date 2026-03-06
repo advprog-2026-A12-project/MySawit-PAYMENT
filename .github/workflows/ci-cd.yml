@@ -16,21 +16,6 @@ jobs:
 
   ci:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: payment_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -58,16 +43,54 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  deploy:
+      - name: Build JAR
+        run: ./gradlew bootJar
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-jar
+          path: build/libs/*.jar
+          retention-days: 1
+
+  deploy-staging:
     needs: ci
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/staging'
 
     steps:
       - name: Deploy to Staging
-        if: github.ref == 'refs/heads/staging'
-        run: echo "Deploying to STAGING environment..."
+        run: echo "⚠️ No staging environment configured yet. Skipping deployment."
 
-      - name: Deploy to Production
-        if: github.ref == 'refs/heads/main'
-        run: echo "Deploying to PRODUCTION environment..."
+  deploy-production:
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: build/libs/
+
+      - name: Deploy to Heroku Production
+        uses: akhileshns/heroku-deploy@v3.13.15
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          buildpack: "heroku/gradle"
+
+      - name: Health Check Production
+        run: |
+          sleep 30
+          curl --retry 5 --retry-delay 10 --fail https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/actuator/health || exit 1
+
+      - name: Notify Production Deployment
+        run: echo "✅ Deployed to PRODUCTION → https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com"
