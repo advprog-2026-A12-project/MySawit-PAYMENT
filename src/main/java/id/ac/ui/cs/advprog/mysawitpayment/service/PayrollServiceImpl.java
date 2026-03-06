@@ -8,7 +8,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.*;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
