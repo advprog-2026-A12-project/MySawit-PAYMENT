@@ -94,3 +94,11 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 tasks.test {
 	finalizedBy(tasks.jacocoTestReport)
 }
+
+tasks.named<Jar>("jar") {
+	enabled = false
+}
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+	archiveFileName.set("mysawit-payment.jar")
+}
