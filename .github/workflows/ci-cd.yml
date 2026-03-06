@@ -78,13 +78,3 @@ jobs:
 
       - name: Deploy to Heroku
         run: git push heroku main --force
-
-      - name: Wait for deployment
-        run: sleep 30
-
-      - name: Health Check Production
-        run: |
-          curl --retry 5 --retry-delay 10 --fail https://${{ secrets.HEROKU_APP_NAME }}-2df96a73ee96.herokuapp.com/actuator/health || exit 1
-
-      - name: Notify Production Deployment
-        run: echo "✅ Deployed to PRODUCTION → https://${{ secrets.HEROKU_APP_NAME }}-2df96a73ee96.herokuapp.com"
