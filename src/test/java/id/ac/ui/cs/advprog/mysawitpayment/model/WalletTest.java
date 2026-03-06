@@ -107,4 +107,16 @@ class WalletTest {
         assertEquals(userId, newWallet.getUserId());
         assertEquals(balance, newWallet.getBalance());
     }
+
+    @Test
+    void testPrePersistHandlesNullBalance() {
+        Wallet wallet = new Wallet();
+        wallet.setUserId(UUID.randomUUID());
+        wallet.setBalance(null);  // Explicitly set null
+
+        wallet.prePersist();
+
+        assertNotNull(wallet.getBalance());
+        assertEquals(BigDecimal.ZERO, wallet.getBalance());
+    }
 }
