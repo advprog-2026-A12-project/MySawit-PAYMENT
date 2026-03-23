@@ -7,7 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Column;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
-import jakarta.validation.constraints.DecimalMin;
+import jakarta.persistence.GenerationType;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.NoArgsConstructor;
@@ -16,6 +16,7 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -28,14 +29,13 @@ import java.util.UUID;
 public class Wallet {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private UUID id;
 
     @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
 
     @Column(nullable = false, precision = 15, scale = 2)
-    @DecimalMin(value = "0.00", message = "Balance cannot be negative")
     @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;
 
@@ -47,7 +47,7 @@ public class Wallet {
 
     @PrePersist
     public void prePersist() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
         if (this.balance == null) {
@@ -57,6 +57,6 @@ public class Wallet {
 
     @PreUpdate
     public void preUpdate() {
-        this.updatedAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }
