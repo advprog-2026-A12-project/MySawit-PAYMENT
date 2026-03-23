@@ -1,0 +1,1 @@
+CREATE INDEX idx_wallets_user ON wallets(user_id)
