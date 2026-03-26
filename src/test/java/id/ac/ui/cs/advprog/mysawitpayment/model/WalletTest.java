@@ -1,122 +1,192 @@
 package id.ac.ui.cs.advprog.mysawitpayment.model;
 
-import org.junit.jupiter.api.BeforeEach;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InsufficientBalanceException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 class WalletTest {
 
-    private Wallet wallet;
-
-    @BeforeEach
-    void setUp() {
+    @Test
+    void builderShouldSetDefaultValues() {
         UUID userId = UUID.randomUUID();
 
-        wallet = Wallet.builder()
+        Wallet wallet = Wallet.builder()
                 .userId(userId)
-                .balance(new BigDecimal("1000.00"))
                 .build();
+
+        assertNotNull(wallet.getId());
+        assertEquals(userId, wallet.getUserId());
+        assertEquals(BigDecimal.ZERO, wallet.getBalance());
     }
 
     @Test
-    void testDefaultBalance() {
-        Wallet newWallet = Wallet.builder()
+    void prePersistShouldSetCreatedAtUpdatedAtAndDefaultBalance() {
+        Wallet wallet = Wallet.builder()
                 .userId(UUID.randomUUID())
+                .balance(null)
                 .build();
 
-        assertEquals(BigDecimal.ZERO, newWallet.getBalance());
-    }
-
-    @Test
-    void testPrePersistSetsTimestamps() {
         wallet.prePersist();
 
+        assertNotNull(wallet.getId());
         assertNotNull(wallet.getCreatedAt());
         assertNotNull(wallet.getUpdatedAt());
+        assertEquals(BigDecimal.ZERO, wallet.getBalance());
         assertEquals(wallet.getCreatedAt(), wallet.getUpdatedAt());
     }
 
     @Test
-    void testPrePersistSetsDefaultBalance() {
-        Wallet newWallet = new Wallet();
-        newWallet.setUserId(UUID.randomUUID());
-        newWallet.prePersist();
+    void prePersistShouldThrowExceptionWhenBalanceIsNegative() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("-1.00"))
+                .build();
 
-        assertNotNull(newWallet.getBalance());
-        assertEquals(BigDecimal.ZERO, newWallet.getBalance());
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                wallet::prePersist
+        );
+
+        assertEquals("Balance cannot be negative", exception.getMessage());
     }
 
     @Test
-    void testPrePersistDoesNotOverrideExistingBalance() {
-        BigDecimal existingBalance = new BigDecimal("500.00");
-        wallet.setBalance(existingBalance);
-        wallet.prePersist();
+    void preUpdateShouldRefreshUpdatedAt() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .createdAt(OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+                .updatedAt(OffsetDateTime.parse("2024-01-01T00:00:00Z"))
+                .build();
 
-        assertEquals(existingBalance, wallet.getBalance());
-    }
-
-    @Test
-    void testPreUpdateUpdatesTimestamp() throws InterruptedException {
-        wallet.prePersist();
-
-        OffsetDateTime originalUpdatedAt = wallet.getUpdatedAt();
-
-        Thread.sleep(5);
+        OffsetDateTime oldUpdatedAt = wallet.getUpdatedAt();
 
         wallet.preUpdate();
 
-        assertTrue(wallet.getUpdatedAt().isAfter(originalUpdatedAt));
+        assertNotNull(wallet.getUpdatedAt());
+        assertTrue(wallet.getUpdatedAt().isAfter(oldUpdatedAt));
     }
 
     @Test
-    void testGettersAndSetters() {
-        UUID userId = UUID.randomUUID();
-        BigDecimal balance = new BigDecimal("2500.50");
-
-        wallet.setUserId(userId);
-        wallet.setBalance(balance);
-
-        assertEquals(userId, wallet.getUserId());
-        assertEquals(balance, wallet.getBalance());
-    }
-
-    @Test
-    void testBalanceCanBeZero() {
-        wallet.setBalance(BigDecimal.ZERO);
-
-        assertEquals(BigDecimal.ZERO, wallet.getBalance());
-    }
-
-    @Test
-    void testBuilderPattern() {
-        UUID userId = UUID.randomUUID();
-        BigDecimal balance = new BigDecimal("750.25");
-
-        Wallet newWallet = Wallet.builder()
-                .userId(userId)
-                .balance(balance)
+    void preUpdateShouldThrowExceptionWhenBalanceIsNegative() {
+        Wallet invalidWallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("-10.00"))
+                .createdAt(OffsetDateTime.now())
+                .updatedAt(OffsetDateTime.now())
                 .build();
 
-        assertEquals(userId, newWallet.getUserId());
-        assertEquals(balance, newWallet.getBalance());
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                invalidWallet::preUpdate
+        );
+
+        assertEquals("Balance cannot be negative", exception.getMessage());
     }
 
     @Test
-    void testPrePersistHandlesNullBalance() {
-        Wallet wallet = new Wallet();
-        wallet.setUserId(UUID.randomUUID());
-        wallet.setBalance(null);  // Explicitly set null
+    void creditShouldIncreaseBalance() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
 
-        wallet.prePersist();
+        wallet.credit(new BigDecimal("25.50"));
 
-        assertNotNull(wallet.getBalance());
-        assertEquals(BigDecimal.ZERO, wallet.getBalance());
+        assertEquals(new BigDecimal("125.50"), wallet.getBalance());
+    }
+
+    @Test
+    void creditShouldThrowExceptionWhenAmountIsNull() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
+
+        InvalidAmountException exception = assertThrows(
+                InvalidAmountException.class,
+                () -> wallet.credit(null)
+        );
+
+        assertEquals("Amount must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void creditShouldThrowExceptionWhenAmountIsZero() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
+
+        InvalidAmountException exception = assertThrows(
+                InvalidAmountException.class,
+                () -> wallet.credit(BigDecimal.ZERO)
+        );
+
+        assertEquals("Amount must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void debitShouldDecreaseBalance() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
+
+        wallet.debit(new BigDecimal("40.00"));
+
+        assertEquals(new BigDecimal("60.00"), wallet.getBalance());
+    }
+
+    @Test
+    void debitShouldThrowExceptionWhenAmountIsNull() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
+
+        InvalidAmountException exception = assertThrows(
+                InvalidAmountException.class,
+                () -> wallet.debit(null)
+        );
+
+        assertEquals("Amount must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void debitShouldThrowExceptionWhenAmountIsZero() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("100.00"))
+                .build();
+
+        InvalidAmountException exception = assertThrows(
+                InvalidAmountException.class,
+                () -> wallet.debit(BigDecimal.ZERO)
+        );
+
+        assertEquals("Amount must be greater than zero", exception.getMessage());
+    }
+
+    @Test
+    void debitShouldThrowExceptionWhenBalanceIsInsufficient() {
+        Wallet wallet = Wallet.builder()
+                .userId(UUID.randomUUID())
+                .balance(new BigDecimal("50.00"))
+                .build();
+
+        InsufficientBalanceException exception = assertThrows(
+                InsufficientBalanceException.class,
+                () -> wallet.debit(new BigDecimal("60.00"))
+        );
+
+        assertEquals("Insufficient wallet balance", exception.getMessage());
+        assertEquals(new BigDecimal("50.00"), wallet.getBalance());
     }
 }
