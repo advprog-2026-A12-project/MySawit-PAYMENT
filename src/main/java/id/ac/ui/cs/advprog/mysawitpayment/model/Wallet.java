@@ -1,18 +1,17 @@
 package id.ac.ui.cs.advprog.mysawitpayment.model;
 
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InsufficientBalanceException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.Column;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
-import jakarta.persistence.GenerationType;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.NoArgsConstructor;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -22,15 +21,14 @@ import java.util.UUID;
 @Entity
 @Table(name = "wallets")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Wallet {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private UUID id;
+    @Builder.Default
+    private UUID id = UUID.randomUUID();
 
     @Column(name = "user_id", nullable = false, unique = true)
     private UUID userId;
@@ -46,17 +44,54 @@ public class Wallet {
     private OffsetDateTime updatedAt;
 
     @PrePersist
-    public void prePersist() {
+    protected void prePersist() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        this.createdAt = now;
-        this.updatedAt = now;
-        if (this.balance == null) {
-            this.balance = BigDecimal.ZERO;
+
+        if (id == null) {
+            id = UUID.randomUUID();
         }
+
+        if (balance == null) {
+            balance = BigDecimal.ZERO;
+        }
+
+        validateBalance();
+
+        createdAt = now;
+        updatedAt = now;
     }
 
     @PreUpdate
-    public void preUpdate() {
-        this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    protected void preUpdate() {
+        validateBalance();
+        updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void credit(BigDecimal amount) {
+        validateAmount(amount);
+        this.balance = this.balance.add(amount);
+    }
+
+    public void debit(BigDecimal amount) {
+        validateAmount(amount);
+
+        BigDecimal newBalance = this.balance.subtract(amount);
+        if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new InsufficientBalanceException();
+        }
+
+        this.balance = newBalance;
+    }
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidAmountException();
+        }
+    }
+
+    private void validateBalance() {
+        if (balance == null || balance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Balance cannot be negative");
+        }
     }
 }
