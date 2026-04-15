@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @RestController
@@ -38,7 +39,7 @@ public class WalletController {
                 .status("success")
                 .message("Wallet retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -74,7 +75,7 @@ public class WalletController {
                 .status("success")
                 .message("Wallet transactions retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -95,7 +96,7 @@ public class WalletController {
                 .status("success")
                 .message("Wallet retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }
