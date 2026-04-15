@@ -80,7 +80,7 @@ public class WalletController {
     }
 
     @GetMapping("/{userId:[0-9a-fA-F\\\\-]{36}}")
-    public ApiResponse<AdminWalletResponse> getWalletById(
+    public ApiResponse<AdminWalletResponse> getWalletByUserId(
             HttpServletRequest request,
             @PathVariable UUID userId
     ) {
