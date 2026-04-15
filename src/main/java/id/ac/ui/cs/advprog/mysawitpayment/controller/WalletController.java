@@ -72,7 +72,7 @@ public class WalletController {
 
         return ApiResponse.<PageResponse<WalletTransactionResponse>>builder()
                 .status("success")
-                .message("Payrolls retrieved successfully")
+                .message("Wallet transactions retrieved successfully")
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now())
                 .build();
