@@ -5,17 +5,14 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
-import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -24,20 +21,6 @@ public class WalletServiceImpl implements WalletService {
 
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
-
-    @Override
-    @Transactional
-    public Wallet createWallet(UUID userId) {
-        if (walletRepository.existsByUserId(userId)) {
-            throw new IllegalArgumentException("Wallet already exists for user");
-        }
-
-        Wallet wallet = Wallet.builder()
-                .userId(userId)
-                .build();
-
-        return walletRepository.save(wallet);
-    }
 
     @Override
     public WalletResponse getMyWallet(UUID userId) {
@@ -52,64 +35,8 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public Page<WalletTransactionResponse> getMyTransactions(UUID userId, Pageable pageable) {
         UUID walletId = findWalletOrThrow(userId).getId();
-        Page<WalletTransaction> walletPage = walletTransactionRepository.findByWalletId(walletId, pageable);
-        return walletPage.map(this::mapToWalletTransactionResponse);
-    }
-
-    @Override
-    @Transactional
-    public void credit(UUID userId, BigDecimal amount, String referenceType, UUID referenceId) {
-
-        Wallet wallet = findWalletOrThrow(userId);
-
-        BigDecimal before = wallet.getBalance();
-
-        wallet.credit(amount);
-
-        BigDecimal after = wallet.getBalance();
-
-        walletRepository.save(wallet);
-
-        WalletTransaction transaction = WalletTransaction.builder()
-                .walletId(wallet.getId())
-                .transactionType(TransactionType.CREDIT)
-                .amount(amount)
-                .balanceBefore(before)
-                .balanceAfter(after)
-                .referenceType(referenceType)
-                .referenceId(referenceId)
-                .description("Credit transaction")
-                .build();
-
-        walletTransactionRepository.save(transaction);
-    }
-
-    @Override
-    @Transactional
-    public void debit(UUID userId, BigDecimal amount, String referenceType, UUID referenceId) {
-
-        Wallet wallet = findWalletOrThrow(userId);
-
-        BigDecimal before = wallet.getBalance();
-
-        wallet.debit(amount);
-
-        BigDecimal after = wallet.getBalance();
-
-        walletRepository.save(wallet);
-
-        WalletTransaction transaction = WalletTransaction.builder()
-                .walletId(wallet.getId())
-                .transactionType(TransactionType.DEBIT)
-                .amount(amount)
-                .balanceBefore(before)
-                .balanceAfter(after)
-                .referenceType(referenceType)
-                .referenceId(referenceId)
-                .description("Debit transaction")
-                .build();
-
-        walletTransactionRepository.save(transaction);
+        Page<WalletTransaction> transactionPage = walletTransactionRepository.findByWalletId(walletId, pageable);
+        return transactionPage.map(this::mapToWalletTransactionResponse);
     }
 
     private Wallet findWalletOrThrow(UUID userId) {
