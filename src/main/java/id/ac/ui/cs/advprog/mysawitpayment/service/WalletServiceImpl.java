@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
@@ -41,7 +42,7 @@ public class WalletServiceImpl implements WalletService {
 
     private Wallet findWalletOrThrow(UUID userId) {
         return walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Wallet not found"));
+                .orElseThrow(WalletNotFoundException::new);
     }
 
     private WalletResponse mapToMyWalletResponse(Wallet wallet) {
