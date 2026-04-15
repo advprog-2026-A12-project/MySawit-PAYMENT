@@ -49,6 +49,13 @@ public class WalletController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        if (page < 0) {
+            throw new RuntimeException("Page must be >= 0");
+        }
+        if (size <= 0 || size > 100) {
+            throw new RuntimeException("Size must be between 1 and 100");
+        }
+
         String userIdStr = (String) request.getAttribute("userId");
         UUID userId = UUID.fromString(userIdStr);
 
