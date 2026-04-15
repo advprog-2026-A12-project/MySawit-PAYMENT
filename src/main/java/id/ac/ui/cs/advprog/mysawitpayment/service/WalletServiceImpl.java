@@ -1,5 +1,8 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
@@ -8,6 +11,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -35,16 +40,27 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public Wallet getWalletByUserId(UUID userId) {
-        return walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Wallet not found"));
+    public WalletResponse getMyWallet(UUID userId) {
+        return mapToMyWalletResponse(findWalletOrThrow(userId));
+    }
+
+    @Override
+    public AdminWalletResponse getWalletByUserId(UUID userId) {
+        return mapToAdminWalletResponse(findWalletOrThrow(userId));
+    }
+
+    @Override
+    public Page<WalletTransactionResponse> getMyTransactions(UUID userId, Pageable pageable) {
+        UUID walletId = findWalletOrThrow(userId).getId();
+        Page<WalletTransaction> walletPage = walletTransactionRepository.findByWalletId(walletId, pageable);
+        return walletPage.map(this::mapToWalletTransactionResponse);
     }
 
     @Override
     @Transactional
     public void credit(UUID userId, BigDecimal amount, String referenceType, UUID referenceId) {
 
-        Wallet wallet = getWalletByUserId(userId);
+        Wallet wallet = findWalletOrThrow(userId);
 
         BigDecimal before = wallet.getBalance();
 
@@ -72,7 +88,7 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public void debit(UUID userId, BigDecimal amount, String referenceType, UUID referenceId) {
 
-        Wallet wallet = getWalletByUserId(userId);
+        Wallet wallet = findWalletOrThrow(userId);
 
         BigDecimal before = wallet.getBalance();
 
@@ -95,4 +111,49 @@ public class WalletServiceImpl implements WalletService {
 
         walletTransactionRepository.save(transaction);
     }
+
+    private Wallet findWalletOrThrow(UUID userId) {
+        return walletRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Wallet not found"));
+    }
+
+    private WalletResponse mapToMyWalletResponse(Wallet wallet) {
+        WalletResponse response = new WalletResponse();
+        response.setId(wallet.getId());
+        response.setUserId(wallet.getUserId());
+        response.setBalance(wallet.getBalance());
+        response.setCreatedAt(wallet.getCreatedAt());
+        response.setCurrency("SawitDollar");
+        response.setUpdatedAt(wallet.getUpdatedAt());
+        return response;
+    }
+
+    private AdminWalletResponse mapToAdminWalletResponse(Wallet wallet) {
+        AdminWalletResponse response = new AdminWalletResponse();
+        response.setId(wallet.getId());
+        response.setUserId(wallet.getUserId());
+        response.setBalance(wallet.getBalance());
+        response.setCreatedAt(wallet.getCreatedAt());
+        response.setCurrency("SawitDollar");
+        response.setUpdatedAt(wallet.getUpdatedAt());
+        // TODO: ambil field null ini dari auth
+        response.setUserName(null);
+        response.setUserRole(null);
+        return response;
+    }
+
+    private WalletTransactionResponse mapToWalletTransactionResponse(WalletTransaction walletTransaction) {
+        WalletTransactionResponse response = new WalletTransactionResponse();
+        response.setId(walletTransaction.getId());
+        response.setTransactionType(walletTransaction.getTransactionType().name());
+        response.setAmount(walletTransaction.getAmount());
+        response.setBalanceBefore(walletTransaction.getBalanceBefore());
+        response.setBalanceAfter(walletTransaction.getBalanceAfter());
+        response.setReferenceType(walletTransaction.getReferenceType());
+        response.setReferenceId(walletTransaction.getReferenceId());
+        response.setDescription(walletTransaction.getDescription());
+        response.setCreatedAt(walletTransaction.getCreatedAt());
+        return response;
+    }
+
 }
