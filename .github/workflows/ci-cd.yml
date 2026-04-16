@@ -24,7 +24,7 @@ jobs:
           POSTGRES_USER: payment_user
           POSTGRES_PASSWORD: paymentpassword
         ports:
-          - 5432:5432
+          - 5435:5432
         options: >-
           --health-cmd="pg_isready -U payment_user -d mysawit_payment_test"
           --health-interval=10s
