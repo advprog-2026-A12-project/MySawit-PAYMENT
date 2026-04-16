@@ -20,7 +20,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "wage_configs")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
