@@ -16,7 +16,20 @@ jobs:
 
   ci:
     runs-on: ubuntu-latest
-
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: mysawit_payment_test
+          POSTGRES_USER: payment_user
+          POSTGRES_PASSWORD: paymentpassword
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U payment_user -d mysawit_payment_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
     steps:
       - name: Checkout
         uses: actions/checkout@v4
