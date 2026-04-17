@@ -18,26 +18,24 @@ class WageConfigTest {
 
     @BeforeEach
     void setUp() {
-        UUID adminId = UUID.randomUUID();
-
         wageConfig = WageConfig.builder()
                 .upahBuruhPerKg(new BigDecimal("2000.00"))
                 .upahSupirPerKg(new BigDecimal("2500.00"))
                 .upahMandorPerKg(new BigDecimal("3000.00"))
-                .updatedBy(adminId)
+                .updatedBy(UUID.randomUUID())
                 .build();
     }
 
     @Test
     void testDefaultIsActive() {
-        WageConfig newConfig = WageConfig.builder()
+        WageConfig config = WageConfig.builder()
                 .upahBuruhPerKg(new BigDecimal("2000.00"))
                 .upahSupirPerKg(new BigDecimal("2500.00"))
                 .upahMandorPerKg(new BigDecimal("3000.00"))
                 .updatedBy(UUID.randomUUID())
                 .build();
 
-        assertEquals(true, newConfig.getIsActive());
+        assertTrue(config.getIsActive());
     }
 
     @Test
@@ -49,25 +47,36 @@ class WageConfigTest {
     }
 
     @Test
-    void testPrePersistSetsDefaultIsActive() {
-        WageConfig newConfig = new WageConfig();
-        newConfig.setUpahBuruhPerKg(new BigDecimal("2000.00"));
-        newConfig.setUpahSupirPerKg(new BigDecimal("2500.00"));
-        newConfig.setUpahMandorPerKg(new BigDecimal("3000.00"));
-        newConfig.setUpdatedBy(UUID.randomUUID());
-        newConfig.prePersist();
+    void testPrePersistSetsDefaultIsActiveWhenNull() {
+        WageConfig config = WageConfig.builder()
+                .upahBuruhPerKg(new BigDecimal("2000.00"))
+                .upahSupirPerKg(new BigDecimal("2500.00"))
+                .upahMandorPerKg(new BigDecimal("3000.00"))
+                .updatedBy(UUID.randomUUID())
+                .isActive(null)
+                .build();
 
-        assertNotNull(newConfig.getIsActive());
-        assertTrue(newConfig.getIsActive());
+        config.prePersist();
+
+        assertNotNull(config.getIsActive());
+        assertTrue(config.getIsActive());
     }
 
     @Test
     void testPrePersistDoesNotOverrideEffectiveFrom() {
         OffsetDateTime customEffectiveFrom = OffsetDateTime.now().minusDays(1);
-        wageConfig.setEffectiveFrom(customEffectiveFrom);
-        wageConfig.prePersist();
 
-        assertEquals(customEffectiveFrom, wageConfig.getEffectiveFrom());
+        WageConfig config = WageConfig.builder()
+                .upahBuruhPerKg(new BigDecimal("2000.00"))
+                .upahSupirPerKg(new BigDecimal("2500.00"))
+                .upahMandorPerKg(new BigDecimal("3000.00"))
+                .updatedBy(UUID.randomUUID())
+                .effectiveFrom(customEffectiveFrom)
+                .build();
+
+        config.prePersist();
+
+        assertEquals(customEffectiveFrom, config.getEffectiveFrom());
     }
 
     @Test
@@ -81,36 +90,28 @@ class WageConfigTest {
 
     @Test
     void testIsCurrentlyActiveTrue() {
-        wageConfig.setIsActive(true);
+        WageConfig config = WageConfig.builder()
+                .upahBuruhPerKg(new BigDecimal("2000.00"))
+                .upahSupirPerKg(new BigDecimal("2500.00"))
+                .upahMandorPerKg(new BigDecimal("3000.00"))
+                .updatedBy(UUID.randomUUID())
+                .isActive(true)
+                .build();
 
-        assertTrue(wageConfig.isCurrentlyActive());
+        assertTrue(config.isCurrentlyActive());
     }
 
     @Test
     void testIsCurrentlyActiveFalse() {
-        wageConfig.setIsActive(false);
+        WageConfig config = WageConfig.builder()
+                .upahBuruhPerKg(new BigDecimal("2000.00"))
+                .upahSupirPerKg(new BigDecimal("2500.00"))
+                .upahMandorPerKg(new BigDecimal("3000.00"))
+                .updatedBy(UUID.randomUUID())
+                .isActive(false)
+                .build();
 
-        assertFalse(wageConfig.isCurrentlyActive());
-    }
-
-    @Test
-    void testGettersAndSetters() {
-        UUID adminId = UUID.randomUUID();
-        BigDecimal buruhRate = new BigDecimal("3000.00");
-        BigDecimal supirRate = new BigDecimal("3500.00");
-        BigDecimal mandorRate = new BigDecimal("4000.00");
-
-        wageConfig.setUpahBuruhPerKg(buruhRate);
-        wageConfig.setUpahSupirPerKg(supirRate);
-        wageConfig.setUpahMandorPerKg(mandorRate);
-        wageConfig.setUpdatedBy(adminId);
-        wageConfig.setIsActive(false);
-
-        assertEquals(buruhRate, wageConfig.getUpahBuruhPerKg());
-        assertEquals(supirRate, wageConfig.getUpahSupirPerKg());
-        assertEquals(mandorRate, wageConfig.getUpahMandorPerKg());
-        assertEquals(adminId, wageConfig.getUpdatedBy());
-        assertFalse(wageConfig.getIsActive());
+        assertFalse(config.isCurrentlyActive());
     }
 
     @Test
@@ -120,7 +121,7 @@ class WageConfigTest {
         BigDecimal supirRate = new BigDecimal("2700.00");
         BigDecimal mandorRate = new BigDecimal("3200.00");
 
-        WageConfig newConfig = WageConfig.builder()
+        WageConfig config = WageConfig.builder()
                 .upahBuruhPerKg(buruhRate)
                 .upahSupirPerKg(supirRate)
                 .upahMandorPerKg(mandorRate)
@@ -128,11 +129,11 @@ class WageConfigTest {
                 .isActive(false)
                 .build();
 
-        assertEquals(buruhRate, newConfig.getUpahBuruhPerKg());
-        assertEquals(supirRate, newConfig.getUpahSupirPerKg());
-        assertEquals(mandorRate, newConfig.getUpahMandorPerKg());
-        assertEquals(adminId, newConfig.getUpdatedBy());
-        assertFalse(newConfig.getIsActive());
+        assertEquals(buruhRate, config.getUpahBuruhPerKg());
+        assertEquals(supirRate, config.getUpahSupirPerKg());
+        assertEquals(mandorRate, config.getUpahMandorPerKg());
+        assertEquals(adminId, config.getUpdatedBy());
+        assertFalse(config.getIsActive());
     }
 
     @Test
@@ -145,7 +146,6 @@ class WageConfigTest {
                 .isActive(true)
                 .build();
         oldConfig.prePersist();
-
         oldConfig.deactivate();
 
         WageConfig newConfig = WageConfig.builder()
@@ -159,15 +159,5 @@ class WageConfigTest {
 
         assertFalse(oldConfig.isCurrentlyActive());
         assertTrue(newConfig.isCurrentlyActive());
-    }
-
-    @Test
-    void testPrePersistHandlesNullStatus() {
-        WageConfig wageConfig = new WageConfig();
-        wageConfig.setIsActive(null);
-        wageConfig.prePersist();
-
-        assertNotNull(wageConfig.getIsActive());
-        assertTrue(wageConfig.isCurrentlyActive());
     }
 }
