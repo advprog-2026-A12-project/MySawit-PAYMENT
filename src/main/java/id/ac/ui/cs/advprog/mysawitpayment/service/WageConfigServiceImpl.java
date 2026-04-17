@@ -37,7 +37,7 @@ public class WageConfigServiceImpl implements WageConfigService {
 
         if (previousActiveConfig != null) {
             previousActiveConfig.deactivate();
-            wageConfigRepository.save(previousActiveConfig);
+            wageConfigRepository.saveAndFlush(previousActiveConfig);
         }
 
         WageConfig newConfig = WageConfig.builder()
