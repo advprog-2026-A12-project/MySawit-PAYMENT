@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CurrentWageConfigResponse
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PreviousWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.UpdatedByResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ActiveWageConfigNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WageConfigRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +26,7 @@ public class WageConfigServiceImpl implements WageConfigService {
     @Override
     public CurrentWageConfigResponse getCurrentWageConfig() {
         WageConfig wageConfig = wageConfigRepository.findByIsActiveTrue()
-                .orElseThrow(() -> new IllegalStateException("No active wage config found"));
+                .orElseThrow(ActiveWageConfigNotFoundException::new);
 
         return mapToCurrentWageConfigResponse(wageConfig);
     }
