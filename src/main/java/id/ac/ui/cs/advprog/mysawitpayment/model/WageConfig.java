@@ -8,7 +8,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.PrePersist;
 import jakarta.validation.constraints.DecimalMin;
 import lombok.Getter;
-import lombok.Setter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -20,7 +19,6 @@ import java.util.UUID;
 @Entity
 @Table(name = "wage_configs")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

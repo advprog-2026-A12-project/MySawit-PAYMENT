@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class JwtFilterTest {
 
@@ -105,5 +106,20 @@ class JwtFilterTest {
         assertTrue(response.getContentAsString().contains("Missing token"));
 
         verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testShouldBypassJwtValidationForTopupCallback() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/topup/callback");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
     }
 }
