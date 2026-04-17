@@ -7,10 +7,9 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
-public interface PaymentService {
+public interface TopUpService {
 
     CreateTopUpResponse createTopUp(CreateTopUpRequest request, UUID adminId);
 
