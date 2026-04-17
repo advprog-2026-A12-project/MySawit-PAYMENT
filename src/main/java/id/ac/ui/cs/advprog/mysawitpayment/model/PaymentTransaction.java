@@ -14,10 +14,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.Map;
 import java.util.UUID;
 
 @Entity
@@ -47,8 +50,9 @@ public class PaymentTransaction {
     @Column(name = "gateway_reference_id", length = 255)
     private String gatewayReferenceId;
 
-    @Column(name = "gateway_callback_payload", columnDefinition = "jsonb")
-    private String gatewayCallbackPayload;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "gateway_callback_payload")
+    private Map<String, Object> gatewayCallbackPayload;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
