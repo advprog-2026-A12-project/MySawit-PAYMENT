@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.model;
 
+import id.ac.ui.cs.advprog.mysawitpayment.exception.GatewayReferenceAlreadyAssignedException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -78,5 +80,36 @@ public class PaymentTransaction {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    }
+
+    public void markSuccess(Map<String, Object> callbackPayload) {
+        ensurePending();
+        this.status = PaymentTransactionStatus.SUCCESS;
+        this.gatewayCallbackPayload = callbackPayload;
+    }
+
+    public void markExpired(Map<String, Object> callbackPayload) {
+        ensurePending();
+        this.status = PaymentTransactionStatus.EXPIRED;
+        this.gatewayCallbackPayload = callbackPayload;
+    }
+
+    public void markFailed(Map<String, Object> callbackPayload) {
+        ensurePending();
+        this.status = PaymentTransactionStatus.FAILED;
+        this.gatewayCallbackPayload = callbackPayload;
+    }
+
+    public void assignGatewayReferenceId(String gatewayReferenceId) {
+        if (this.gatewayReferenceId != null) {
+            throw new GatewayReferenceAlreadyAssignedException();
+        }
+        this.gatewayReferenceId = gatewayReferenceId;
+    }
+
+    private void ensurePending() {
+        if (this.status != PaymentTransactionStatus.PENDING) {
+            throw new PaymentTransactionAlreadyProcessedException();
+        }
     }
 }
