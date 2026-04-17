@@ -67,6 +67,8 @@ dependencies {
 	testImplementation("com.h2database:h2")
 
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+	implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
 }
 
 tasks.withType<Test> {

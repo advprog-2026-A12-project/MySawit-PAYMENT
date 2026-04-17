@@ -6,14 +6,17 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -38,6 +41,37 @@ public class WalletServiceImpl implements WalletService {
         UUID walletId = findWalletOrThrow(userId).getId();
         Page<WalletTransaction> transactionPage = walletTransactionRepository.findByWalletId(walletId, pageable);
         return transactionPage.map(this::mapToWalletTransactionResponse);
+    }
+
+    @Override
+    @Transactional
+    public void creditWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    ) {
+
+        Wallet wallet = findWalletOrThrow(userId);
+
+        BigDecimal balanceBefore = wallet.getBalance();
+        wallet.credit(amount);
+        walletRepository.save(wallet);
+        BigDecimal balanceAfter = wallet.getBalance();
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .walletId(wallet.getId())
+                .transactionType(TransactionType.CREDIT)
+                .amount(amount)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .description(description)
+                .build();
+
+        walletTransactionRepository.save(walletTransaction);
     }
 
     private Wallet findWalletOrThrow(UUID userId) {
