@@ -1,6 +1,6 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
-import id.ac.ui.cs.advprog.mysawitpayment.dto.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
