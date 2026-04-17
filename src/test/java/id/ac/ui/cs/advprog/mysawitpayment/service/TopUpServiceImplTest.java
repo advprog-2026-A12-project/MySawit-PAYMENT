@@ -1,0 +1,498 @@
+package id.ac.ui.cs.advprog.mysawitpayment.service;
+
+import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
+import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
+import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.*;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+class TopUpServiceImplTest {
+
+    private PaymentTransactionRepository paymentTransactionRepository;
+    private PaymentGatewayClient paymentGatewayClient;
+    private XenditProperties xenditProperties;
+    private WalletService walletService;
+
+    private TopUpServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        paymentTransactionRepository = mock(PaymentTransactionRepository.class);
+        paymentGatewayClient = mock(PaymentGatewayClient.class);
+        xenditProperties = new XenditProperties();
+        walletService = mock(WalletService.class);
+
+        xenditProperties.setWebhookToken("valid-token");
+
+        service = new TopUpServiceImpl(
+                paymentTransactionRepository,
+                paymentGatewayClient,
+                xenditProperties,
+                walletService
+        );
+    }
+
+    @Test
+    void createTopUpShouldCreateInvoiceAndReturnResponse() {
+        UUID adminId = UUID.randomUUID();
+        UUID transactionId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime expiresAt = createdAt.plusHours(1);
+
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("12.345"));
+
+        PaymentTransaction firstSaved = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("12.35"))
+                .amountIdr(new BigDecimal("123500.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(createdAt)
+                .updatedAt(createdAt)
+                .build();
+
+        PaymentTransaction secondSaved = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("12.35"))
+                .amountIdr(new BigDecimal("123500.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-123")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(createdAt)
+                .updatedAt(createdAt)
+                .build();
+
+        CreateInvoiceResult invoiceResult = CreateInvoiceResult.builder()
+                .gatewayReferenceId("inv-123")
+                .paymentUrl("https://pay.xendit.co/inv-123")
+                .expiresAt(expiresAt)
+                .status("PENDING")
+                .build();
+
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class)))
+                .thenReturn(firstSaved)
+                .thenReturn(secondSaved);
+
+        when(paymentGatewayClient.createTopupInvoice(
+                eq(transactionId),
+                eq(adminId),
+                eq(new BigDecimal("123500.00"))
+        )).thenReturn(invoiceResult);
+
+        CreateTopUpResponse response = service.createTopUp(request, adminId);
+
+        assertThat(response.getId()).isEqualTo(transactionId);
+        assertThat(response.getAmountSawitDollar()).isEqualByComparingTo("12.35");
+        assertThat(response.getAmountIdr()).isEqualByComparingTo("123500.00");
+        assertThat(response.getExchangeRate()).isEqualTo("1 SD = Rp 10,000");
+        assertThat(response.getPaymentGateway()).isEqualTo("XENDIT");
+        assertThat(response.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
+        assertThat(response.getPaymentUrl()).isEqualTo("https://pay.xendit.co/inv-123");
+        assertThat(response.getExpiresAt()).isEqualTo(expiresAt);
+        assertThat(response.getCreatedAt()).isEqualTo(createdAt);
+
+        verify(paymentTransactionRepository, times(2)).save(any(PaymentTransaction.class));
+        verify(paymentGatewayClient).createTopupInvoice(transactionId, adminId, new BigDecimal("123500.00"));
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenRequestIsNull() {
+        UUID adminId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> service.createTopUp(null, adminId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Amount SawitDollar is required");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenAmountIsNull() {
+        UUID adminId = UUID.randomUUID();
+        CreateTopUpRequest request = new CreateTopUpRequest();
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Amount SawitDollar is required");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenAmountIsZero() {
+        UUID adminId = UUID.randomUUID();
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", BigDecimal.ZERO);
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Amount SawitDollar must be greater than 0");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenAmountIsNegative() {
+        UUID adminId = UUID.randomUUID();
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("-1"));
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Amount SawitDollar must be greater than 0");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void getMyTopUpsShouldMapPageCorrectly() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("createdAt").descending());
+
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+
+        PaymentTransaction tx = PaymentTransaction.builder()
+                .id(UUID.randomUUID())
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("15.00"))
+                .amountIdr(new BigDecimal("150000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.SUCCESS)
+                .createdAt(now.minusHours(1))
+                .updatedAt(now)
+                .build();
+
+        Page<PaymentTransaction> page = new PageImpl<>(List.of(tx), pageable, 1);
+        when(paymentTransactionRepository.findByAdminId(adminId, pageable)).thenReturn(page);
+
+        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminId, pageable);
+
+        assertThat(result.getContent()).hasSize(1);
+        HistoryTopUpResponse item = result.getContent().get(0);
+        assertThat(item.getId()).isEqualTo(tx.getId());
+        assertThat(item.getAmountSawitDollar()).isEqualByComparingTo("15.00");
+        assertThat(item.getAmountIdr()).isEqualByComparingTo("150000.00");
+        assertThat(item.getPaymentGateway()).isEqualTo("XENDIT");
+        assertThat(item.getStatus()).isEqualTo("SUCCESS");
+        assertThat(item.getCreatedAt()).isEqualTo(tx.getCreatedAt());
+        assertThat(item.getUpdatedAt()).isEqualTo(tx.getUpdatedAt());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenTokenIsNull() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+
+        assertThatThrownBy(() -> service.handleXenditCallback(null, request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Invalid Xendit callback token");
+
+        verify(paymentTransactionRepository, never()).findById(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenTokenIsInvalid() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+
+        assertThatThrownBy(() -> service.handleXenditCallback("wrong-token", request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Invalid Xendit callback token");
+
+        verify(paymentTransactionRepository, never()).findById(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenTransactionNotFound() {
+        UUID transactionId = UUID.randomUUID();
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("Payment transaction not found");
+    }
+
+    @Test
+    void handleXenditCallbackShouldReturnImmediatelyWhenAlreadySuccess() {
+        UUID transactionId = UUID.randomUUID();
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-1")
+                .status(PaymentTransactionStatus.SUCCESS)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+        request.setId("inv-1");
+        request.setStatus("PAID");
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldMarkSuccessAndCreditWallet() {
+        UUID transactionId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-paid");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
+        request.setPaidAt(OffsetDateTime.now(ZoneOffset.UTC));
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.SUCCESS);
+        assertThat(transaction.getGatewayReferenceId()).isEqualTo("inv-paid");
+        assertThat(transaction.getGatewayCallbackPayload()).isNotNull();
+        assertThat(transaction.getGatewayCallbackPayload()).containsEntry("id", "inv-paid");
+        assertThat(transaction.getGatewayCallbackPayload()).containsEntry("status", "PAID");
+
+        verify(walletService).creditWallet(
+                adminId,
+                new BigDecimal("10.00"),
+                "TOPUP",
+                transactionId,
+                "Top-up via Xendit"
+        );
+        verify(paymentTransactionRepository).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldMarkExpired() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-expired");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("EXPIRED");
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.EXPIRED);
+        assertThat(transaction.getGatewayReferenceId()).isEqualTo("inv-expired");
+        assertThat(transaction.getGatewayCallbackPayload()).isNotNull();
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldMarkFailed() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-failed");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("FAILED");
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.FAILED);
+        assertThat(transaction.getGatewayReferenceId()).isEqualTo("inv-failed");
+        assertThat(transaction.getGatewayCallbackPayload()).isNotNull();
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldNotReassignGatewayReferenceIdWhenAlreadyExists() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("existing-ref")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("new-ref");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("EXPIRED");
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        assertThat(transaction.getGatewayReferenceId()).isEqualTo("existing-ref");
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.EXPIRED);
+        verify(paymentTransactionRepository).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldSaveEvenWhenStatusIsUnknown() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-unknown");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("WHATEVER");
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
+        assertThat(transaction.getGatewayReferenceId()).isEqualTo("inv-unknown");
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository).save(transaction);
+    }
+
+    @Test
+    void getTopUpDetailShouldReturnMappedResponse() {
+        UUID transactionId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC).minusHours(2);
+        OffsetDateTime updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("20.00"))
+                .amountIdr(new BigDecimal("200000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-detail")
+                .status(PaymentTransactionStatus.SUCCESS)
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
+                .build();
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        TopUpDetailResponse response = service.getTopUpDetail(transactionId, adminId);
+
+        assertThat(response.getId()).isEqualTo(transactionId);
+        assertThat(response.getAdmin()).isNotNull();
+        assertThat(response.getAdmin().getId()).isEqualTo(adminId);
+        assertThat(response.getAdmin().getName()).isNull();
+        assertThat(response.getAmountSawitDollar()).isEqualByComparingTo("20.00");
+        assertThat(response.getAmountIdr()).isEqualByComparingTo("200000.00");
+        assertThat(response.getExchangeRate()).isEqualTo("1 SD = Rp 10,000");
+        assertThat(response.getPaymentGateway()).isEqualTo("XENDIT");
+        assertThat(response.getGatewayReferenceId()).isEqualTo("inv-detail");
+        assertThat(response.getStatus()).isEqualTo(PaymentTransactionStatus.SUCCESS);
+        assertThat(response.getCreatedAt()).isEqualTo(createdAt);
+        assertThat(response.getUpdatedAt()).isEqualTo(updatedAt);
+    }
+
+    @Test
+    void getTopUpDetailShouldThrowWhenNotFound() {
+        UUID transactionId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminId))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Top-up transaction not found");
+    }
+
+    private static void setField(Object target, String fieldName, Object value) {
+        try {
+            var field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
