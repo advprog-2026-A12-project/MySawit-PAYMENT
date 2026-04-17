@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -21,6 +23,7 @@ public class CreateWageConfigResponse {
 
     private String currency;
 
+    @JsonIgnore
     private boolean isActive;
 
     private PreviousWageConfigResponse previousConfig;
@@ -30,4 +33,9 @@ public class CreateWageConfigResponse {
     private OffsetDateTime effectiveFrom;
 
     private OffsetDateTime createdAt;
+
+    @JsonProperty("isActive")
+    public boolean getIsActive() {
+        return isActive;
+    }
 }
