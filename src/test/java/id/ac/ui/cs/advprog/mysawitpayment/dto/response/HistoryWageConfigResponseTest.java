@@ -1,0 +1,73 @@
+package id.ac.ui.cs.advprog.mysawitpayment.dto.response;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.json.JsonTest;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@JsonTest
+class HistoryWageConfigResponseTest {
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void shouldSerializeIsActiveCorrectly() throws Exception {
+        HistoryWageConfigResponse response = HistoryWageConfigResponse.builder()
+                .id(UUID.randomUUID())
+                .upahBuruhPerKg(BigDecimal.valueOf(3.0))
+                .upahSupirPerKg(BigDecimal.valueOf(2.0))
+                .upahMandorPerKg(BigDecimal.valueOf(1.5))
+                .isActive(true)
+                .updatedBy(UpdatedByResponse.builder()
+                        .id(UUID.randomUUID())
+                        .name("Admin")
+                        .build())
+                .effectiveFrom(OffsetDateTime.now())
+                .build();
+
+        String json = objectMapper.writeValueAsString(response);
+
+        assertThat(json).contains("\"isActive\":true");
+
+        assertThat(json).doesNotContain("\"active\":");
+
+        assertThat(json.split("isActive").length - 1).isEqualTo(1);
+    }
+
+    @Test
+    void shouldSerializeAllFieldsCorrectly() throws Exception {
+        UUID id = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+
+        HistoryWageConfigResponse response = HistoryWageConfigResponse.builder()
+                .id(id)
+                .upahBuruhPerKg(BigDecimal.valueOf(3.0))
+                .upahSupirPerKg(BigDecimal.valueOf(2.0))
+                .upahMandorPerKg(BigDecimal.valueOf(1.5))
+                .isActive(false)
+                .updatedBy(UpdatedByResponse.builder()
+                        .id(adminId)
+                        .name("Admin")
+                        .build())
+                .effectiveFrom(now)
+                .build();
+
+        String json = objectMapper.writeValueAsString(response);
+
+        assertThat(json).contains(id.toString());
+        assertThat(json).contains("\"upahBuruhPerKg\":3.0");
+        assertThat(json).contains("\"upahSupirPerKg\":2.0");
+        assertThat(json).contains("\"upahMandorPerKg\":1.5");
+        assertThat(json).contains("\"isActive\":false");
+        assertThat(json).contains(adminId.toString());
+        assertThat(json).contains("\"name\":\"Admin\"");
+    }
+}
