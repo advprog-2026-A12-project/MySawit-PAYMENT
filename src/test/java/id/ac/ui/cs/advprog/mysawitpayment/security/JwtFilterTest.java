@@ -122,4 +122,23 @@ class JwtFilterTest {
         verify(jwtUtil, never()).isValid(anyString());
         verify(jwtUtil, never()).extractClaims(anyString());
     }
+
+    @Test
+    void testShouldBypassJwtValidationForCorsPreflightOptionsRequest() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setMethod("OPTIONS");
+        request.setRequestURI("/api/v1/wallets/me");
+        request.addHeader("Origin", "http://localhost:3000");
+        request.addHeader("Access-Control-Request-Method", "GET");
+        request.addHeader("Access-Control-Request-Headers", "Authorization");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
+    }
 }
