@@ -1,9 +1,13 @@
 package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.RejectPayrollRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.ApiResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
 import lombok.RequiredArgsConstructor;
@@ -34,7 +38,7 @@ public class PayrollController {
     private final PayrollService payrollService;
 
     @GetMapping
-    public ApiResponse<PageResponse<PayrollResponse>> getPayrolls(
+    public ApiResponse<PageResponse<AdminPayrollResponse>> getPayrolls(
             HttpServletRequest request,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
@@ -52,11 +56,11 @@ public class PayrollController {
                 Sort.by("createdAt").descending()
         );
 
-        Page<PayrollResponse> payrollPage =
+        Page<AdminPayrollResponse> payrollPage =
                 payrollService.getAllPayrolls(pageable);
 
-        PageResponse<PayrollResponse> pageResponse =
-                PageResponse.<PayrollResponse>builder()
+        PageResponse<AdminPayrollResponse> pageResponse =
+                PageResponse.<AdminPayrollResponse>builder()
                         .content(payrollPage.getContent())
                         .page(payrollPage.getNumber())
                         .size(payrollPage.getSize())
@@ -66,7 +70,7 @@ public class PayrollController {
                         .last(payrollPage.isLast())
                         .build();
 
-        return ApiResponse.<PageResponse<PayrollResponse>>builder()
+        return ApiResponse.<PageResponse<AdminPayrollResponse>>builder()
                 .status("success")
                 .message("Payrolls retrieved successfully")
                 .data(pageResponse)
@@ -113,13 +117,13 @@ public class PayrollController {
     }
 
     @GetMapping("/{payrollId:[0-9a-fA-F\\\\-]{36}}")
-    public ApiResponse<PayrollResponse> getPayrollById(
+    public ApiResponse<PayrollDetailResponse> getPayrollById(
             @PathVariable UUID payrollId
     ) {
 
-        PayrollResponse response = payrollService.getPayrollById(payrollId);
+        PayrollDetailResponse response = payrollService.getPayrollById(payrollId);
 
-        return ApiResponse.<PayrollResponse>builder()
+        return ApiResponse.<PayrollDetailResponse>builder()
                 .status("success")
                 .message("Payroll detail retrieved successfully")
                 .data(response)
@@ -128,7 +132,7 @@ public class PayrollController {
     }
 
     @PutMapping("/{payrollId}/accept")
-    public ApiResponse<PayrollResponse> acceptPayroll(
+    public ApiResponse<AcceptPayrollResponse> acceptPayroll(
             HttpServletRequest request,
             @PathVariable UUID payrollId
     ) {
@@ -136,10 +140,10 @@ public class PayrollController {
         String adminIdStr = (String) request.getAttribute("userId");
         UUID adminId = UUID.fromString(adminIdStr);
 
-        PayrollResponse response =
-                payrollService.approvePayroll(payrollId, adminId);
+        AcceptPayrollResponse response =
+                payrollService.acceptPayroll(payrollId, adminId);
 
-        return ApiResponse.<PayrollResponse>builder()
+        return ApiResponse.<AcceptPayrollResponse>builder()
                 .status("success")
                 .message("Payroll accepted and disbursed successfully")
                 .data(response)
@@ -148,7 +152,7 @@ public class PayrollController {
     }
 
     @PutMapping("/{payrollId}/reject")
-    public ApiResponse<PayrollResponse> rejectPayroll(
+    public ApiResponse<RejectPayrollResponse> rejectPayroll(
             HttpServletRequest request,
             @PathVariable UUID payrollId,
             @RequestBody RejectPayrollRequest requestBody
@@ -157,10 +161,10 @@ public class PayrollController {
         String adminIdStr = (String) request.getAttribute("userId");
         UUID adminId = UUID.fromString(adminIdStr);
 
-        PayrollResponse response =
+        RejectPayrollResponse response =
                 payrollService.rejectPayroll(payrollId, adminId, requestBody.getRejectionReason());
 
-        return ApiResponse.<PayrollResponse>builder()
+        return ApiResponse.<RejectPayrollResponse>builder()
                 .status("success")
                 .message("Payroll rejected")
                 .data(response)
