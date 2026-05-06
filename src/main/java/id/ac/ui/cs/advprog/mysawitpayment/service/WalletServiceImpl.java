@@ -1,8 +1,10 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
@@ -113,6 +115,30 @@ public class WalletServiceImpl implements WalletService {
                 .balanceBefore(balanceBefore)
                 .balanceAfter(balanceAfter)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public WalletCreationResponse createWallet(WalletCreationRequest request) {
+        UUID userId = request.getUserId();
+
+        return walletRepository.findByUserId(userId)
+                .map(wallet -> WalletCreationResponse.builder()
+                        .walletId(wallet.getId())
+                        .alreadyProcessed(true)
+                        .build())
+                .orElseGet(() -> {
+                    Wallet wallet = Wallet.builder()
+                            .userId(userId)
+                            .build();
+
+                    Wallet savedWallet = walletRepository.save(wallet);
+
+                    return WalletCreationResponse.builder()
+                            .walletId(savedWallet.getId())
+                            .alreadyProcessed(false)
+                            .build();
+                });
     }
 
     private Wallet findWalletOrThrow(UUID userId) {
