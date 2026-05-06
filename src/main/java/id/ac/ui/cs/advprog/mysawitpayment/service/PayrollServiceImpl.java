@@ -1,11 +1,13 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.*;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class PayrollServiceImpl implements PayrollService {
 
     private final PayrollRepository payrollRepository;
+    private final WalletService walletService;
 
     @Override
     public Page<AdminPayrollResponse> getAllPayrolls(Pageable pageable) {
@@ -47,16 +50,39 @@ public class PayrollServiceImpl implements PayrollService {
     }
 
     @Override
+    @Transactional
     public AcceptPayrollResponse acceptPayroll(UUID payrollId, UUID adminId) {
 
         Payroll payroll = findPayrollOrThrow(payrollId);
         ensurePending(payroll, payrollId);
 
+        WalletMutationResult adminWalletResult = walletService.debitWallet(
+                adminId,
+                payroll.getAmount(),
+                "PAYROLL_DEDUCTION",
+                payroll.getId(),
+                "Pengurangan saldo untuk pembayaran payroll"
+        );
+
+        WalletMutationResult workerWalletResult = walletService.creditWallet(
+                payroll.getUserId(),
+                payroll.getAmount(),
+                "PAYROLL_DISBURSEMENT",
+                payroll.getId(),
+                "Pencairan payroll"
+        );
+
         payroll.setStatus(PayrollStatus.ACCEPTED);
         payroll.setApprovedBy(adminId);
         payroll.setApprovedAt(OffsetDateTime.now());
 
-        return mapToAcceptResponse(payrollRepository.save(payroll));
+        Payroll savedPayroll = payrollRepository.save(payroll);
+
+        return mapToAcceptResponse(
+                savedPayroll,
+                adminWalletResult,
+                workerWalletResult
+        );
     }
 
     @Override
@@ -163,26 +189,35 @@ public class PayrollServiceImpl implements PayrollService {
         return response;
     }
 
-    private AcceptPayrollResponse mapToAcceptResponse(Payroll payroll) {
+    private AcceptPayrollResponse mapToAcceptResponse(
+            Payroll payroll,
+            WalletMutationResult adminWalletResult,
+            WalletMutationResult workerWalletResult
+    ) {
         PayrollUserResponse user = new PayrollUserResponse();
-
         user.setId(payroll.getUserId());
+        //TODO: ambil dari auth
+        user.setName("");
+        user.setRole("");
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
-
         approvedBy.setId(payroll.getApprovedBy());
-
-        PayrollDisbursementResponse disbursement = new PayrollDisbursementResponse();
+        // TODO: ambil dari auth
+        approvedBy.setName("");
 
         PayrollWalletResponse adminWallet = new PayrollWalletResponse();
+        adminWallet.setBalanceBefore(adminWalletResult.getBalanceBefore());
+        adminWallet.setBalanceAfter(adminWalletResult.getBalanceAfter());
 
         PayrollWalletResponse workerWallet = new PayrollWalletResponse();
+        workerWallet.setBalanceBefore(workerWalletResult.getBalanceBefore());
+        workerWallet.setBalanceAfter(workerWalletResult.getBalanceAfter());
 
+        PayrollDisbursementResponse disbursement = new PayrollDisbursementResponse();
         disbursement.setAdminWallet(adminWallet);
         disbursement.setWorkerWallet(workerWallet);
 
         AcceptPayrollResponse response = new AcceptPayrollResponse();
-
         response.setId(payroll.getId());
         response.setUser(user);
         response.setAmount(payroll.getAmount());
@@ -196,12 +231,15 @@ public class PayrollServiceImpl implements PayrollService {
 
     private RejectPayrollResponse mapToRejectResponse(Payroll payroll) {
         PayrollUserResponse user = new PayrollUserResponse();
-
         user.setId(payroll.getUserId());
+        //TODO: ambil dari auth
+        user.setName("");
+        user.setRole("");
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
-
         approvedBy.setId(payroll.getApprovedBy());
+        // TODO: ambil dari auth
+        approvedBy.setName("");
 
         RejectPayrollResponse response = new RejectPayrollResponse();
 
