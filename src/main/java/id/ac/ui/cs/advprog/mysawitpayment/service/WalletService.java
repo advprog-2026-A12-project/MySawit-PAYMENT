@@ -17,7 +17,19 @@ public interface WalletService {
 
     Page<WalletTransactionResponse> getMyTransactions(UUID userId, Pageable pageable);
 
-    WalletMutationResult creditWallet(UUID userId, BigDecimal amount, String referenceType, UUID referenceId, String description);
+    WalletMutationResult creditWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    );
 
-    WalletMutationResult debitWallet(UUID userId, BigDecimal amount, String referenceType, UUID referenceId, String description);
+    WalletMutationResult debitWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    );
 }
