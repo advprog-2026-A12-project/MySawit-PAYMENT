@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
@@ -45,7 +46,7 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public void creditWallet(
+    public WalletMutationResult creditWallet(
             UUID userId,
             BigDecimal amount,
             String referenceType,
@@ -72,6 +73,46 @@ public class WalletServiceImpl implements WalletService {
                 .build();
 
         walletTransactionRepository.save(walletTransaction);
+
+        return WalletMutationResult.builder()
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public WalletMutationResult debitWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    ) {
+        Wallet wallet = findWalletOrThrow(userId);
+
+        BigDecimal balanceBefore = wallet.getBalance();
+        wallet.debit(amount);
+        walletRepository.save(wallet);
+        BigDecimal balanceAfter = wallet.getBalance();
+
+        WalletTransaction walletTransaction = WalletTransaction.builder()
+                .walletId(wallet.getId())
+                .transactionType(TransactionType.DEBIT)
+                .amount(amount)
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .referenceType(referenceType)
+                .referenceId(referenceId)
+                .description(description)
+                .build();
+
+        walletTransactionRepository.save(walletTransaction);
+
+        return WalletMutationResult.builder()
+                .balanceBefore(balanceBefore)
+                .balanceAfter(balanceAfter)
+                .build();
     }
 
     private Wallet findWalletOrThrow(UUID userId) {
