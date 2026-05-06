@@ -9,6 +9,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -209,6 +211,132 @@ class WalletServiceImplTest {
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
         assertThrows(WalletNotFoundException.class, () -> walletService.getMyTransactions(userId, pageable));
+
+        verify(walletRepository).findByUserId(userId);
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void creditWalletShouldIncreaseBalanceAndSaveTransaction() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        Wallet wallet = createWallet(walletId, userId);
+        BigDecimal amount = new BigDecimal("500.00");
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
+
+        WalletMutationResult result = walletService.creditWallet(
+                userId,
+                amount,
+                "PAYROLL_DISBURSEMENT",
+                referenceId,
+                "Payroll disbursement"
+        );
+
+        assertNotNull(result);
+        assertEquals(new BigDecimal("1500.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("2000.00"), result.getBalanceAfter());
+
+        assertEquals(new BigDecimal("2000.00"), wallet.getBalance());
+
+        verify(walletRepository).findByUserId(userId);
+        verify(walletRepository).save(wallet);
+
+        ArgumentCaptor<WalletTransaction> transactionCaptor =
+                ArgumentCaptor.forClass(WalletTransaction.class);
+
+        verify(walletTransactionRepository).save(transactionCaptor.capture());
+
+        WalletTransaction savedTransaction = transactionCaptor.getValue();
+        assertEquals(walletId, savedTransaction.getWalletId());
+        assertEquals(TransactionType.CREDIT, savedTransaction.getTransactionType());
+        assertEquals(amount, savedTransaction.getAmount());
+        assertEquals(new BigDecimal("1500.00"), savedTransaction.getBalanceBefore());
+        assertEquals(new BigDecimal("2000.00"), savedTransaction.getBalanceAfter());
+        assertEquals("PAYROLL_DISBURSEMENT", savedTransaction.getReferenceType());
+        assertEquals(referenceId, savedTransaction.getReferenceId());
+        assertEquals("Payroll disbursement", savedTransaction.getDescription());
+    }
+
+    @Test
+    void creditWalletShouldThrowWalletNotFoundException() {
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        assertThrows(WalletNotFoundException.class, () -> walletService.creditWallet(
+                userId,
+                new BigDecimal("500.00"),
+                "PAYROLL_DISBURSEMENT",
+                referenceId,
+                "Payroll disbursement"
+        ));
+
+        verify(walletRepository).findByUserId(userId);
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void debitWalletShouldDecreaseBalanceAndSaveTransaction() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        Wallet wallet = createWallet(walletId, userId);
+        BigDecimal amount = new BigDecimal("500.00");
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
+
+        WalletMutationResult result = walletService.debitWallet(
+                userId,
+                amount,
+                "PAYROLL_DEDUCTION",
+                referenceId,
+                "Payroll deduction"
+        );
+
+        assertNotNull(result);
+        assertEquals(new BigDecimal("1500.00"), result.getBalanceBefore());
+        assertEquals(new BigDecimal("1000.00"), result.getBalanceAfter());
+
+        assertEquals(new BigDecimal("1000.00"), wallet.getBalance());
+
+        verify(walletRepository).findByUserId(userId);
+        verify(walletRepository).save(wallet);
+
+        ArgumentCaptor<WalletTransaction> transactionCaptor =
+                ArgumentCaptor.forClass(WalletTransaction.class);
+
+        verify(walletTransactionRepository).save(transactionCaptor.capture());
+
+        WalletTransaction savedTransaction = transactionCaptor.getValue();
+        assertEquals(walletId, savedTransaction.getWalletId());
+        assertEquals(TransactionType.DEBIT, savedTransaction.getTransactionType());
+        assertEquals(amount, savedTransaction.getAmount());
+        assertEquals(new BigDecimal("1500.00"), savedTransaction.getBalanceBefore());
+        assertEquals(new BigDecimal("1000.00"), savedTransaction.getBalanceAfter());
+        assertEquals("PAYROLL_DEDUCTION", savedTransaction.getReferenceType());
+        assertEquals(referenceId, savedTransaction.getReferenceId());
+        assertEquals("Payroll deduction", savedTransaction.getDescription());
+    }
+
+    @Test
+    void debitWalletShouldThrowWalletNotFoundException() {
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
+
+        assertThrows(WalletNotFoundException.class, () -> walletService.debitWallet(
+                userId,
+                new BigDecimal("500.00"),
+                "PAYROLL_DEDUCTION",
+                referenceId,
+                "Payroll deduction"
+        ));
 
         verify(walletRepository).findByUserId(userId);
         verifyNoInteractions(walletTransactionRepository);
