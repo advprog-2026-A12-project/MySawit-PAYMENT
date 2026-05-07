@@ -55,6 +55,7 @@ public class InternalController {
                 .status("success")
                 .message(message)
                 .data(response)
+                .timestamp(OffsetDateTime.now())
                 .build();
     }
 }
