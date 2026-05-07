@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal;
 
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
@@ -15,7 +16,7 @@ public class PayrollCreationRequest {
     private UUID userId;
 
     @NotNull
-    private String userRole;
+    private UserRole userRole;
 
     @NotNull
     private ReferenceType referenceType;
