@@ -141,4 +141,35 @@ class JwtFilterTest {
         verify(jwtUtil, never()).isValid(anyString());
         verify(jwtUtil, never()).extractClaims(anyString());
     }
+
+    @Test
+    void testShouldBypassJwtValidationForInternalEndpoint() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/internal/wallets");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
+    }
+
+    @Test
+    void testShouldNotBypassJwtValidationForInternalPathWithoutTrailingSlash() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/internal");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Missing token"));
+
+        verify(chain, never()).doFilter(request, response);
+    }
 }
