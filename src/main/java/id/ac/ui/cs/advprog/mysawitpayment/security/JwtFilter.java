@@ -41,6 +41,11 @@ public class JwtFilter implements Filter {
             return;
         }
 
+        if (path.startsWith("/api/v1/internal/")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
