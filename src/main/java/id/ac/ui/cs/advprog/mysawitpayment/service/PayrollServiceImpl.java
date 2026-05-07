@@ -124,7 +124,8 @@ public class PayrollServiceImpl implements PayrollService {
         UUID referenceId = request.getReferenceId();
         BigDecimal kilogram = request.getKilogram();
 
-        WageConfig config = wageConfigService.getActiveWageConfig();
+        validatePayrollCreation(userRole, referenceType);
+
         return payrollRepository
                 .findByReferenceTypeAndReferenceIdAndUserId(referenceType, referenceId, userId)
                 .map(existingPayroll -> PayrollCreationResponse.builder()
