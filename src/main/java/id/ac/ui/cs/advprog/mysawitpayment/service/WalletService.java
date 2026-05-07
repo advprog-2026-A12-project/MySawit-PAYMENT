@@ -1,8 +1,10 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,4 +34,6 @@ public interface WalletService {
             UUID referenceId,
             String description
     );
+
+    WalletCreationResponse createWallet(WalletCreationRequest request);
 }
