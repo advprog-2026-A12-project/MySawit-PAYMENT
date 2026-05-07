@@ -24,10 +24,14 @@ public class WageConfigServiceImpl implements WageConfigService {
     private final WageConfigRepository wageConfigRepository;
 
     @Override
-    public CurrentWageConfigResponse getCurrentWageConfig() {
-        WageConfig wageConfig = wageConfigRepository.findByIsActiveTrue()
+    public WageConfig getActiveWageConfig() {
+        return wageConfigRepository.findByIsActiveTrue()
                 .orElseThrow(ActiveWageConfigNotFoundException::new);
+    }
 
+    @Override
+    public CurrentWageConfigResponse getCurrentWageConfig() {
+        WageConfig wageConfig = getActiveWageConfig();
         return mapToCurrentWageConfigResponse(wageConfig);
     }
 
