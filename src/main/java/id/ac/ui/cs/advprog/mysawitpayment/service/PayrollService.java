@@ -7,7 +7,6 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

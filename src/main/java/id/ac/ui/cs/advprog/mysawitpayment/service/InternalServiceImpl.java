@@ -4,8 +4,6 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.PayrollCreationRe
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
-import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
