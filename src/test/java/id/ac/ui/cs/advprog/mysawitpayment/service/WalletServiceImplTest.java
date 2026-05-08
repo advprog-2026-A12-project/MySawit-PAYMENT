@@ -3,12 +3,16 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
@@ -42,6 +46,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,8 +58,15 @@ class WalletServiceImplTest {
     @Mock
     private WalletTransactionRepository walletTransactionRepository;
 
+    @Mock
+    private PaymentAuthorizationService authorizationService;
+
     @InjectMocks
     private WalletServiceImpl walletService;
+
+    private AuthenticatedUser requester(UUID userId, UserRole role) {
+        return new AuthenticatedUser(userId, role);
+    }
 
     private Wallet createWallet(UUID walletId, UUID userId) {
         return Wallet.builder()
@@ -89,7 +101,7 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
 
-        WalletResponse result = walletService.getMyWallet(userId);
+        WalletResponse result = walletService.getMyWallet(requester(userId, UserRole.BURUH));
 
         assertNotNull(result);
         assertEquals(walletId, result.getId());
@@ -99,6 +111,7 @@ class WalletServiceImplTest {
         assertEquals(wallet.getCreatedAt(), result.getCreatedAt());
         assertEquals(wallet.getUpdatedAt(), result.getUpdatedAt());
 
+        verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
         verifyNoInteractions(walletTransactionRepository);
     }
@@ -109,9 +122,27 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        assertThrows(WalletNotFoundException.class, () -> walletService.getMyWallet(userId));
+        assertThrows(
+                WalletNotFoundException.class,
+                () -> walletService.getMyWallet(requester(userId, UserRole.BURUH))
+        );
 
+        verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void getMyWalletShouldThrowForbiddenWhenRequesterIsNotAllowed() {
+        AuthenticatedUser requester = requester(UUID.randomUUID(), UserRole.BURUH);
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireOwnWalletAccess(requester);
+
+        assertThrows(ForbiddenException.class, () -> walletService.getMyWallet(requester));
+
+        verify(authorizationService).requireOwnWalletAccess(requester);
+        verifyNoInteractions(walletRepository);
         verifyNoInteractions(walletTransactionRepository);
     }
 
@@ -123,7 +154,10 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
 
-        AdminWalletResponse result = walletService.getWalletByUserId(userId);
+        AdminWalletResponse result = walletService.getWalletByUserId(
+                requester(UUID.randomUUID(), UserRole.ADMIN),
+                userId
+        );
 
         assertNotNull(result);
         assertEquals(walletId, result.getId());
@@ -136,6 +170,7 @@ class WalletServiceImplTest {
         assertNull(result.getUserName());
         assertNull(result.getUserRole());
 
+        verify(authorizationService).requireAdminWalletViewer(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
         verifyNoInteractions(walletTransactionRepository);
     }
@@ -146,9 +181,30 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        assertThrows(WalletNotFoundException.class, () -> walletService.getWalletByUserId(userId));
+        assertThrows(
+                WalletNotFoundException.class,
+                () -> walletService.getWalletByUserId(requester(UUID.randomUUID(), UserRole.ADMIN), userId)
+        );
 
+        verify(authorizationService).requireAdminWalletViewer(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void getWalletByUserIdShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        AuthenticatedUser requester = requester(UUID.randomUUID(), UserRole.BURUH);
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireAdminWalletViewer(requester);
+
+        assertThrows(
+                ForbiddenException.class,
+                () -> walletService.getWalletByUserId(requester, UUID.randomUUID())
+        );
+
+        verify(authorizationService).requireAdminWalletViewer(requester);
+        verifyNoInteractions(walletRepository);
         verifyNoInteractions(walletTransactionRepository);
     }
 
@@ -167,7 +223,10 @@ class WalletServiceImplTest {
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
         when(walletTransactionRepository.findByWalletId(walletId, pageable)).thenReturn(transactionPage);
 
-        Page<WalletTransactionResponse> result = walletService.getMyTransactions(userId, pageable);
+        Page<WalletTransactionResponse> result = walletService.getMyTransactions(
+                requester(userId, UserRole.BURUH),
+                pageable
+        );
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -184,6 +243,7 @@ class WalletServiceImplTest {
         assertEquals("Payroll disbursement", response.getDescription());
         assertEquals(transaction.getCreatedAt(), response.getCreatedAt());
 
+        verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
         verify(walletTransactionRepository).findByWalletId(walletId, pageable);
     }
@@ -200,12 +260,16 @@ class WalletServiceImplTest {
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
         when(walletTransactionRepository.findByWalletId(walletId, pageable)).thenReturn(emptyPage);
 
-        Page<WalletTransactionResponse> result = walletService.getMyTransactions(userId, pageable);
+        Page<WalletTransactionResponse> result = walletService.getMyTransactions(
+                requester(userId, UserRole.BURUH),
+                pageable
+        );
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
         assertEquals(0, result.getTotalElements());
 
+        verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
         verify(walletTransactionRepository).findByWalletId(walletId, pageable);
     }
@@ -217,9 +281,28 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
-        assertThrows(WalletNotFoundException.class, () -> walletService.getMyTransactions(userId, pageable));
+        assertThrows(
+                WalletNotFoundException.class,
+                () -> walletService.getMyTransactions(requester(userId, UserRole.BURUH), pageable)
+        );
 
+        verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void getMyTransactionsShouldThrowForbiddenWhenRequesterIsNotAllowed() {
+        AuthenticatedUser requester = requester(UUID.randomUUID(), UserRole.BURUH);
+        Pageable pageable = PageRequest.of(0, 20);
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireOwnWalletAccess(requester);
+
+        assertThrows(ForbiddenException.class, () -> walletService.getMyTransactions(requester, pageable));
+
+        verify(authorizationService).requireOwnWalletAccess(requester);
+        verifyNoInteractions(walletRepository);
         verifyNoInteractions(walletTransactionRepository);
     }
 
