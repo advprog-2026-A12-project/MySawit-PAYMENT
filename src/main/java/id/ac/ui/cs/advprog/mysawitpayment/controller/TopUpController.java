@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -39,12 +40,10 @@ public class TopUpController {
             HttpServletRequest request,
             @RequestBody CreateTopUpRequest requestBody
     ) {
-        validateAdmin(request);
-
-        String adminIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(adminIdStr);
-
-        CreateTopUpResponse response = topUpService.createTopUp(requestBody, adminId);
+        CreateTopUpResponse response = topUpService.createTopUp(
+                requestBody,
+                AuthenticatedUser.from(request)
+        );
 
         return ApiResponse.<CreateTopUpResponse>builder()
                 .status("success")
@@ -60,11 +59,6 @@ public class TopUpController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        validateAdmin(request);
-
-        String adminIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(adminIdStr);
-
         Pageable pageable = PageRequest.of(
                 page,
                 size,
@@ -72,7 +66,7 @@ public class TopUpController {
         );
 
         Page<HistoryTopUpResponse> resultPage = topUpService.getMyTopUps(
-                adminId,
+                AuthenticatedUser.from(request),
                 pageable
         );
 
@@ -99,12 +93,10 @@ public class TopUpController {
             HttpServletRequest request,
             @PathVariable UUID topupId
     ) {
-        validateAdmin(request);
-
-        String adminIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(adminIdStr);
-
-        TopUpDetailResponse response = topUpService.getTopUpDetail(topupId, adminId);
+        TopUpDetailResponse response = topUpService.getTopUpDetail(
+                topupId,
+                AuthenticatedUser.from(request)
+        );
 
         return ApiResponse.<TopUpDetailResponse>builder()
                 .status("success")
@@ -123,10 +115,4 @@ public class TopUpController {
         return Map.of("status", "success");
     }
 
-    private void validateAdmin(HttpServletRequest request) {
-        String role = (String) request.getAttribute("userRole");
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Forbidden");
-        }
-    }
 }
