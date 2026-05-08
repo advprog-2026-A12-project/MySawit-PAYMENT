@@ -1,7 +1,12 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.PayrollCreationRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -9,15 +14,15 @@ import java.util.UUID;
 
 public interface PayrollService {
 
-    Page<PayrollResponse> getAllPayrolls(Pageable pageable);
+    Page<AdminPayrollResponse> getAllPayrolls(Pageable pageable);
 
     Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable);
 
-    PayrollResponse getPayrollById(UUID payrollId);
+    PayrollDetailResponse getPayrollById(UUID payrollId);
 
-    PayrollResponse approvePayroll(UUID payrollId, UUID adminId);
+    AcceptPayrollResponse acceptPayroll(UUID payrollId, UUID adminId);
 
-    PayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason);
+    RejectPayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason);
 
-    PayrollResponse createPayroll(Payroll payroll);
+    PayrollCreationResponse createPayroll(PayrollCreationRequest request);
 }

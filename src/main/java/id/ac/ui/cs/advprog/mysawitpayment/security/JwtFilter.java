@@ -13,7 +13,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 @Component
-@Order(1)
+@Order(2)
 public class JwtFilter implements Filter {
 
     private final JwtUtil jwtUtil;
@@ -31,7 +31,17 @@ public class JwtFilter implements Filter {
 
         String path = request.getRequestURI();
 
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         if ("/api/v1/topup/callback".equals(path)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        if (path.startsWith("/api/v1/internal/")) {
             chain.doFilter(request, response);
             return;
         }
