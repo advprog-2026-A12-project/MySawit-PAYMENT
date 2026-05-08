@@ -5,7 +5,10 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +36,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -72,7 +74,9 @@ class TopUpControllerTest {
                 .createdAt(now)
                 .build();
 
-        when(topUpService.createTopUp(any(), eq(adminId))).thenReturn(response);
+        AuthenticatedUser admin = new AuthenticatedUser(adminId, UserRole.ADMIN);
+
+        when(topUpService.createTopUp(any(), eq(admin))).thenReturn(response);
 
         String requestBody = """
                 {
@@ -96,7 +100,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.status").value("PENDING"))
                 .andExpect(jsonPath("$.data.paymentUrl").value("https://pay.xendit.co/invoice"));
 
-        verify(topUpService).createTopUp(any(), eq(adminId));
+        verify(topUpService).createTopUp(any(), eq(admin));
     }
 
     @Test
@@ -120,7 +124,9 @@ class TopUpControllerTest {
                 1
         );
 
-        when(topUpService.getMyTopUps(eq(adminId), any(Pageable.class))).thenReturn(page);
+        AuthenticatedUser admin = new AuthenticatedUser(adminId, UserRole.ADMIN);
+
+        when(topUpService.getMyTopUps(eq(admin), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "ADMIN")
@@ -142,7 +148,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.first").value(true))
                 .andExpect(jsonPath("$.data.last").value(true));
 
-        verify(topUpService).getMyTopUps(eq(adminId), any(Pageable.class));
+        verify(topUpService).getMyTopUps(eq(admin), any(Pageable.class));
     }
 
     @Test
@@ -164,7 +170,9 @@ class TopUpControllerTest {
                 .updatedAt(updatedAt)
                 .build();
 
-        when(topUpService.getTopUpDetail(transactionId, adminId)).thenReturn(response);
+        AuthenticatedUser admin = new AuthenticatedUser(adminId, UserRole.ADMIN);
+
+        when(topUpService.getTopUpDetail(transactionId, admin)).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/topup/{topupId}", transactionId)
                         .requestAttr("userRole", "ADMIN")
@@ -180,11 +188,14 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.gatewayReferenceId").value("inv-123"))
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"));
 
-        verify(topUpService).getTopUpDetail(transactionId, adminId);
+        verify(topUpService).getTopUpDetail(transactionId, admin);
     }
 
     @Test
     void createTopUpForbidden() {
+        when(topUpService.createTopUp(any(), any()))
+                .thenThrow(new ForbiddenException());
+
         String requestBody = """
             {
               "amountSawitDollar": 10.00
@@ -200,14 +211,17 @@ class TopUpControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         assertEquals("Forbidden", ex.getCause().getMessage());
 
-        verify(topUpService, never()).createTopUp(any(), any());
+        verify(topUpService).createTopUp(any(), any());
     }
 
     @Test
     void getMyTopUpsForbidden() {
+        when(topUpService.getMyTopUps(any(), any()))
+                .thenThrow(new ForbiddenException());
+
         ServletException ex = assertThrows(ServletException.class, () ->
                 mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "MANDOR")
@@ -215,15 +229,17 @@ class TopUpControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         assertEquals("Forbidden", ex.getCause().getMessage());
 
-        verify(topUpService, never()).getMyTopUps(any(), any());
+        verify(topUpService).getMyTopUps(any(), any());
     }
 
     @Test
     void getTopUpDetailForbidden() {
         UUID topupId = UUID.randomUUID();
+        when(topUpService.getTopUpDetail(eq(topupId), any()))
+                .thenThrow(new ForbiddenException());
 
         ServletException ex = assertThrows(ServletException.class, () ->
                 mockMvc.perform(get("/api/v1/topup/{topupId}", topupId)
@@ -232,10 +248,10 @@ class TopUpControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         assertEquals("Forbidden", ex.getCause().getMessage());
 
-        verify(topUpService, never()).getTopUpDetail(any(), any());
+        verify(topUpService).getTopUpDetail(eq(topupId), any());
     }
 
     @Test
