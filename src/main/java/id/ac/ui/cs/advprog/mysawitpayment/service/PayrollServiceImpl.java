@@ -21,6 +21,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 
@@ -40,16 +42,21 @@ public class PayrollServiceImpl implements PayrollService {
     private final PayrollRepository payrollRepository;
     private final WalletService walletService;
     private final WageConfigService wageConfigService;
+    private final PaymentAuthorizationService authorizationService;
 
     @Override
-    public Page<AdminPayrollResponse> getAllPayrolls(Pageable pageable) {
+    public Page<AdminPayrollResponse> getAllPayrolls(AuthenticatedUser requester, Pageable pageable) {
+        authorizationService.requireAdmin(requester);
+
         Page<Payroll> allPayrolls = getPayrollsInternal(null, pageable);
         return allPayrolls.map(this::mapToAdminResponse);
     }
 
     @Override
-    public Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable) {
-        Page<Payroll> myPayrolls = getPayrollsInternal(userId, pageable);
+    public Page<PayrollResponse> getMyPayrolls(AuthenticatedUser requester, Pageable pageable) {
+        authorizationService.requirePayrollRecipient(requester);
+
+        Page<Payroll> myPayrolls = getPayrollsInternal(requester.id(), pageable);
         return myPayrolls.map(this::mapToResponse);
     }
 
@@ -62,19 +69,23 @@ public class PayrollServiceImpl implements PayrollService {
     }
 
     @Override
-    public PayrollDetailResponse getPayrollById(UUID payrollId) {
-        return mapToDetailResponse(findPayrollOrThrow(payrollId));
+    public PayrollDetailResponse getPayrollById(UUID payrollId, AuthenticatedUser requester) {
+        Payroll payroll = findPayrollOrThrow(payrollId);
+        authorizationService.requirePayrollViewer(requester, payroll.getUserId());
+
+        return mapToDetailResponse(payroll);
     }
 
     @Override
     @Transactional
-    public AcceptPayrollResponse acceptPayroll(UUID payrollId, UUID adminId) {
+    public AcceptPayrollResponse acceptPayroll(UUID payrollId, AuthenticatedUser requester) {
+        authorizationService.requireAdmin(requester);
 
         Payroll payroll = findPayrollOrThrow(payrollId);
         ensurePending(payroll, payrollId);
 
         WalletMutationResult adminWalletResult = walletService.debitWallet(
-                adminId,
+                requester.id(),
                 payroll.getAmount(),
                 "PAYROLL_DEDUCTION",
                 payroll.getId(),
@@ -90,7 +101,7 @@ public class PayrollServiceImpl implements PayrollService {
         );
 
         payroll.setStatus(PayrollStatus.ACCEPTED);
-        payroll.setApprovedBy(adminId);
+        payroll.setApprovedBy(requester.id());
         payroll.setApprovedAt(OffsetDateTime.now());
 
         Payroll savedPayroll = payrollRepository.save(payroll);
@@ -103,13 +114,14 @@ public class PayrollServiceImpl implements PayrollService {
     }
 
     @Override
-    public RejectPayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason) {
+    public RejectPayrollResponse rejectPayroll(UUID payrollId, AuthenticatedUser requester, String reason) {
+        authorizationService.requireAdmin(requester);
 
         Payroll payroll = findPayrollOrThrow(payrollId);
         ensurePending(payroll, payrollId);
 
         payroll.setStatus(PayrollStatus.REJECTED);
-        payroll.setApprovedBy(adminId);
+        payroll.setApprovedBy(requester.id());
         payroll.setApprovedAt(OffsetDateTime.now());
         payroll.setRejectionReason(reason);
 
