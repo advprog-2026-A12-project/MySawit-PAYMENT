@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.ApiResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WalletService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +35,9 @@ public class WalletController {
     public ApiResponse<WalletResponse> getMyWallet(
             HttpServletRequest request
     ) {
-        String userIdStr = (String) request.getAttribute("userId");
-        UUID userId = UUID.fromString(userIdStr);
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
 
-        WalletResponse response = walletService.getMyWallet(userId);
+        WalletResponse response = walletService.getMyWallet(requester);
 
         return  ApiResponse.<WalletResponse>builder()
                 .status("success")
@@ -53,6 +53,8 @@ public class WalletController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
+
         if (page < 0) {
             throw new RuntimeException("Page must be >= 0");
         }
@@ -60,16 +62,13 @@ public class WalletController {
             throw new RuntimeException("Size must be between 1 and 100");
         }
 
-        String userIdStr = (String) request.getAttribute("userId");
-        UUID userId = UUID.fromString(userIdStr);
-
         Pageable pageable = PageRequest.of(
                 page,
                 size,
                 Sort.by("createdAt").descending()
         );
 
-        Page<WalletTransactionResponse> transactionPage = walletService.getMyTransactions(userId, pageable);
+        Page<WalletTransactionResponse> transactionPage = walletService.getMyTransactions(requester, pageable);
 
         PageResponse<WalletTransactionResponse> pageResponse =
                 PageResponse.<WalletTransactionResponse>builder()
@@ -95,13 +94,9 @@ public class WalletController {
             HttpServletRequest request,
             @PathVariable UUID userId
     ) {
-        String role = (String) request.getAttribute("userRole");
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
 
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Forbidden");
-        }
-
-        AdminWalletResponse response = walletService.getWalletByUserId(userId);
+        AdminWalletResponse response = walletService.getWalletByUserId(requester, userId);
 
         return  ApiResponse.<AdminWalletResponse>builder()
                 .status("success")

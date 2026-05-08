@@ -8,6 +8,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidPayrollRequestException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollNotFoundException;
@@ -17,6 +18,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -60,8 +63,19 @@ class PayrollServiceImplTest {
     @Mock
     private WageConfigService wageConfigService;
 
+    @Mock
+    private PaymentAuthorizationService authorizationService;
+
     @InjectMocks
     private PayrollServiceImpl payrollService;
+
+    private AuthenticatedUser adminUser(UUID adminId) {
+        return new AuthenticatedUser(adminId, UserRole.ADMIN);
+    }
+
+    private AuthenticatedUser payrollUser(UUID userId) {
+        return new AuthenticatedUser(userId, UserRole.BURUH);
+    }
 
     private Payroll createPendingPayroll(UUID payrollId, UUID userId) {
         return Payroll.builder()
@@ -144,7 +158,7 @@ class PayrollServiceImplTest {
         )).thenReturn(workerWalletResult);
         when(payrollRepository.save(payroll)).thenReturn(payroll);
 
-        AcceptPayrollResponse result = payrollService.acceptPayroll(payrollId, adminId);
+        AcceptPayrollResponse result = payrollService.acceptPayroll(payrollId, adminUser(adminId));
 
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
@@ -179,7 +193,7 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
-                payrollService.acceptPayroll(payrollId, adminId)
+                payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
         verify(payrollRepository).findById(payrollId);
@@ -200,7 +214,7 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
-                payrollService.acceptPayroll(payrollId, adminId)
+                payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
         verify(payrollRepository).findById(payrollId);
@@ -221,7 +235,7 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
         when(payrollRepository.save(payroll)).thenReturn(payroll);
 
-        RejectPayrollResponse result = payrollService.rejectPayroll(payrollId, adminId, reason);
+        RejectPayrollResponse result = payrollService.rejectPayroll(payrollId, adminUser(adminId), reason);
 
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
@@ -255,7 +269,7 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
-                payrollService.rejectPayroll(payrollId, adminId, "Data tidak valid")
+                payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
         verify(payrollRepository).findById(payrollId);
@@ -276,7 +290,7 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
-                payrollService.rejectPayroll(payrollId, adminId, "Data tidak valid")
+                payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
         verify(payrollRepository).findById(payrollId);
@@ -296,7 +310,7 @@ class PayrollServiceImplTest {
 
         when(payrollRepository.findAll(pageable)).thenReturn(payrollPage);
 
-        Page<AdminPayrollResponse> result = payrollService.getAllPayrolls(pageable);
+        Page<AdminPayrollResponse> result = payrollService.getAllPayrolls(adminUser(UUID.randomUUID()), pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -331,7 +345,7 @@ class PayrollServiceImplTest {
 
         when(payrollRepository.findByUserId(userId, pageable)).thenReturn(payrollPage);
 
-        Page<PayrollResponse> result = payrollService.getMyPayrolls(userId, pageable);
+        Page<PayrollResponse> result = payrollService.getMyPayrolls(payrollUser(userId), pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -368,7 +382,7 @@ class PayrollServiceImplTest {
 
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
 
-        PayrollDetailResponse result = payrollService.getPayrollById(payrollId);
+        PayrollDetailResponse result = payrollService.getPayrollById(payrollId, adminUser(UUID.randomUUID()));
 
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
@@ -399,7 +413,68 @@ class PayrollServiceImplTest {
         when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
-                payrollService.getPayrollById(payrollId)
+                payrollService.getPayrollById(payrollId, adminUser(UUID.randomUUID()))
+        );
+
+        verify(payrollRepository).findById(payrollId);
+        verifyNoInteractions(walletService);
+        verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void acceptPayrollShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        PayrollServiceImpl securedService = new PayrollServiceImpl(
+                payrollRepository,
+                walletService,
+                wageConfigService,
+                new PaymentAuthorizationService()
+        );
+
+        assertThrows(ForbiddenException.class, () ->
+                securedService.acceptPayroll(UUID.randomUUID(), payrollUser(UUID.randomUUID()))
+        );
+
+        verifyNoInteractions(payrollRepository);
+        verifyNoInteractions(walletService);
+        verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void getMyPayrollsShouldThrowForbiddenWhenRequesterIsAdmin() {
+        PayrollServiceImpl securedService = new PayrollServiceImpl(
+                payrollRepository,
+                walletService,
+                wageConfigService,
+                new PaymentAuthorizationService()
+        );
+
+        assertThrows(ForbiddenException.class, () ->
+                securedService.getMyPayrolls(adminUser(UUID.randomUUID()), PageRequest.of(0, 20))
+        );
+
+        verifyNoInteractions(payrollRepository);
+        verifyNoInteractions(walletService);
+        verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void getPayrollByIdShouldThrowForbiddenWhenRequesterIsNotOwner() {
+        UUID payrollId = UUID.randomUUID();
+        UUID ownerId = UUID.randomUUID();
+        UUID otherUserId = UUID.randomUUID();
+        Payroll payroll = createPendingPayroll(payrollId, ownerId);
+
+        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+
+        PayrollServiceImpl securedService = new PayrollServiceImpl(
+                payrollRepository,
+                walletService,
+                wageConfigService,
+                new PaymentAuthorizationService()
+        );
+
+        assertThrows(ForbiddenException.class, () ->
+                securedService.getPayrollById(payrollId, payrollUser(otherUserId))
         );
 
         verify(payrollRepository).findById(payrollId);

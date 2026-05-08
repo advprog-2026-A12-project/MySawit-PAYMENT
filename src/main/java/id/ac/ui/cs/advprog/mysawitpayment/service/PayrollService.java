@@ -7,6 +7,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -14,15 +15,15 @@ import java.util.UUID;
 
 public interface PayrollService {
 
-    Page<AdminPayrollResponse> getAllPayrolls(Pageable pageable);
+    Page<AdminPayrollResponse> getAllPayrolls(AuthenticatedUser requester, Pageable pageable);
 
-    Page<PayrollResponse> getMyPayrolls(UUID userId, Pageable pageable);
+    Page<PayrollResponse> getMyPayrolls(AuthenticatedUser requester, Pageable pageable);
 
-    PayrollDetailResponse getPayrollById(UUID payrollId);
+    PayrollDetailResponse getPayrollById(UUID payrollId, AuthenticatedUser requester);
 
-    AcceptPayrollResponse acceptPayroll(UUID payrollId, UUID adminId);
+    AcceptPayrollResponse acceptPayroll(UUID payrollId, AuthenticatedUser requester);
 
-    RejectPayrollResponse rejectPayroll(UUID payrollId, UUID adminId, String reason);
+    RejectPayrollResponse rejectPayroll(UUID payrollId, AuthenticatedUser requester, String reason);
 
     PayrollCreationResponse createPayroll(PayrollCreationRequest request);
 }

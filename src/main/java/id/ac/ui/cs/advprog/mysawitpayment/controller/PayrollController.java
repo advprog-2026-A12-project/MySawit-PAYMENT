@@ -8,6 +8,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,6 @@ public class PayrollController {
             @RequestParam(defaultValue = "20") int size
     ) {
 
-        String role = (String) request.getAttribute("userRole");
-
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Forbidden");
-        }
-
         Pageable pageable = PageRequest.of(
                 page,
                 size,
@@ -57,7 +52,7 @@ public class PayrollController {
         );
 
         Page<AdminPayrollResponse> payrollPage =
-                payrollService.getAllPayrolls(pageable);
+                payrollService.getAllPayrolls(AuthenticatedUser.from(request), pageable);
 
         PageResponse<AdminPayrollResponse> pageResponse =
                 PageResponse.<AdminPayrollResponse>builder()
@@ -85,9 +80,6 @@ public class PayrollController {
             @RequestParam(defaultValue = "20") int size
     ) {
 
-        String userIdStr = (String) request.getAttribute("userId");
-        UUID userId = UUID.fromString(userIdStr);
-
         Pageable pageable = PageRequest.of(
                 page,
                 size,
@@ -95,7 +87,7 @@ public class PayrollController {
         );
 
         Page<PayrollResponse> payrollPage =
-                payrollService.getMyPayrolls(userId, pageable);
+                payrollService.getMyPayrolls(AuthenticatedUser.from(request), pageable);
 
         PageResponse<PayrollResponse> pageResponse =
                 PageResponse.<PayrollResponse>builder()
@@ -118,10 +110,14 @@ public class PayrollController {
 
     @GetMapping("/{payrollId:[0-9a-fA-F\\\\-]{36}}")
     public ApiResponse<PayrollDetailResponse> getPayrollById(
+            HttpServletRequest request,
             @PathVariable UUID payrollId
     ) {
 
-        PayrollDetailResponse response = payrollService.getPayrollById(payrollId);
+        PayrollDetailResponse response = payrollService.getPayrollById(
+                payrollId,
+                AuthenticatedUser.from(request)
+        );
 
         return ApiResponse.<PayrollDetailResponse>builder()
                 .status("success")
@@ -137,11 +133,8 @@ public class PayrollController {
             @PathVariable UUID payrollId
     ) {
 
-        String adminIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(adminIdStr);
-
         AcceptPayrollResponse response =
-                payrollService.acceptPayroll(payrollId, adminId);
+                payrollService.acceptPayroll(payrollId, AuthenticatedUser.from(request));
 
         return ApiResponse.<AcceptPayrollResponse>builder()
                 .status("success")
@@ -158,11 +151,12 @@ public class PayrollController {
             @RequestBody RejectPayrollRequest requestBody
     ) {
 
-        String adminIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(adminIdStr);
-
         RejectPayrollResponse response =
-                payrollService.rejectPayroll(payrollId, adminId, requestBody.getRejectionReason());
+                payrollService.rejectPayroll(
+                        payrollId,
+                        AuthenticatedUser.from(request),
+                        requestBody.getRejectionReason()
+                );
 
         return ApiResponse.<RejectPayrollResponse>builder()
                 .status("success")
