@@ -32,6 +32,18 @@ public class PaymentAuthorizationService {
         return user.id().equals(topUpAdminId);
     }
 
+    public boolean canAccessOwnWallet(AuthenticatedUser user) {
+        return user != null;
+    }
+
+    public boolean canViewWalletAsAdmin(AuthenticatedUser user) {
+        return canAdmin(user);
+    }
+
+    public boolean canManageWageConfig(AuthenticatedUser user) {
+        return canAdmin(user);
+    }
+
     public void requireAdmin(AuthenticatedUser user) {
         forbidUnless(canAdmin(user));
     }
@@ -46,6 +58,18 @@ public class PaymentAuthorizationService {
 
     public void requireTopUpOwner(AuthenticatedUser user, UUID topUpAdminId) {
         forbidUnless(canViewTopUp(user, topUpAdminId));
+    }
+
+    public void requireOwnWalletAccess(AuthenticatedUser user) {
+        forbidUnless(canAccessOwnWallet(user));
+    }
+
+    public void requireAdminWalletViewer(AuthenticatedUser user) {
+        forbidUnless(canViewWalletAsAdmin(user));
+    }
+
+    public void requireWageConfigManager(AuthenticatedUser user) {
+        forbidUnless(canManageWageConfig(user));
     }
 
     private void forbidUnless(boolean allowed) {
