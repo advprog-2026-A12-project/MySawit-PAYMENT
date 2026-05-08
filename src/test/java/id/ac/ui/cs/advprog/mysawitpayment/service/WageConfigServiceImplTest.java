@@ -5,8 +5,12 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CurrentWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ActiveWageConfigNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WageConfigRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,6 +39,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class WageConfigServiceImplTest {
@@ -42,12 +48,19 @@ class WageConfigServiceImplTest {
     @Mock
     private WageConfigRepository wageConfigRepository;
 
+    @Mock
+    private PaymentAuthorizationService authorizationService;
+
     @InjectMocks
     private WageConfigServiceImpl wageConfigService;
 
     private UUID adminId;
     private WageConfig activeConfig;
     private OffsetDateTime now;
+
+    private AuthenticatedUser adminRequester() {
+        return new AuthenticatedUser(adminId, UserRole.ADMIN);
+    }
 
     @BeforeEach
     void setUp() {
@@ -70,7 +83,7 @@ class WageConfigServiceImplTest {
     void getCurrentWageConfigShouldReturnCurrentResponseWhenActiveConfigExists() {
         when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.of(activeConfig));
 
-        CurrentWageConfigResponse response = wageConfigService.getCurrentWageConfig();
+        CurrentWageConfigResponse response = wageConfigService.getCurrentWageConfig(adminRequester());
 
         assertNotNull(response);
         assertEquals(activeConfig.getId(), response.getId());
@@ -85,6 +98,7 @@ class WageConfigServiceImplTest {
         assertEquals(activeConfig.getEffectiveFrom(), response.getEffectiveFrom());
         assertEquals(activeConfig.getCreatedAt(), response.getCreatedAt());
 
+        verify(authorizationService).requireWageConfigManager(adminRequester());
         verify(wageConfigRepository).findByIsActiveTrue();
     }
 
@@ -93,9 +107,23 @@ class WageConfigServiceImplTest {
         when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
 
         assertThrows(ActiveWageConfigNotFoundException.class,
-                () -> wageConfigService.getCurrentWageConfig());
+                () -> wageConfigService.getCurrentWageConfig(adminRequester()));
 
+        verify(authorizationService).requireWageConfigManager(adminRequester());
         verify(wageConfigRepository).findByIsActiveTrue();
+    }
+
+    @Test
+    void getCurrentWageConfigShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        AuthenticatedUser requester = new AuthenticatedUser(UUID.randomUUID(), UserRole.BURUH);
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireWageConfigManager(requester);
+
+        assertThrows(ForbiddenException.class, () -> wageConfigService.getCurrentWageConfig(requester));
+
+        verify(authorizationService).requireWageConfigManager(requester);
+        verifyNoInteractions(wageConfigRepository);
     }
 
     @Test
@@ -133,7 +161,7 @@ class WageConfigServiceImplTest {
         when(wageConfigRepository.saveAndFlush(previousConfig)).thenReturn(previousConfig);
         when(wageConfigRepository.save(any(WageConfig.class))).thenReturn(savedNewConfig);
 
-        CreateWageConfigResponse response = wageConfigService.createWageConfig(request, adminId);
+        CreateWageConfigResponse response = wageConfigService.createWageConfig(request, adminRequester());
 
         assertNotNull(response);
         assertEquals(savedNewConfig.getId(), response.getId());
@@ -157,6 +185,7 @@ class WageConfigServiceImplTest {
         assertFalse(previousConfig.getIsActive());
 
         ArgumentCaptor<WageConfig> newConfigCaptor = ArgumentCaptor.forClass(WageConfig.class);
+        verify(authorizationService).requireWageConfigManager(adminRequester());
         verify(wageConfigRepository).saveAndFlush(previousConfig);
         verify(wageConfigRepository).save(newConfigCaptor.capture());
 
@@ -190,7 +219,7 @@ class WageConfigServiceImplTest {
         when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
         when(wageConfigRepository.save(any(WageConfig.class))).thenReturn(savedNewConfig);
 
-        CreateWageConfigResponse response = wageConfigService.createWageConfig(request, adminId);
+        CreateWageConfigResponse response = wageConfigService.createWageConfig(request, adminRequester());
 
         assertNotNull(response);
         assertEquals(savedNewConfig.getId(), response.getId());
@@ -200,8 +229,23 @@ class WageConfigServiceImplTest {
         assertTrue(response.getIsActive());
         assertNull(response.getPreviousConfig());
 
+        verify(authorizationService).requireWageConfigManager(adminRequester());
         verify(wageConfigRepository, never()).saveAndFlush(any(WageConfig.class));
         verify(wageConfigRepository).save(any(WageConfig.class));
+    }
+
+    @Test
+    void createWageConfigShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        AuthenticatedUser requester = new AuthenticatedUser(UUID.randomUUID(), UserRole.MANDOR);
+        CreateWageConfigRequest request = new CreateWageConfigRequest();
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireWageConfigManager(requester);
+
+        assertThrows(ForbiddenException.class, () -> wageConfigService.createWageConfig(request, requester));
+
+        verify(authorizationService).requireWageConfigManager(requester);
+        verifyNoInteractions(wageConfigRepository);
     }
 
     @Test
@@ -233,7 +277,10 @@ class WageConfigServiceImplTest {
         Page<WageConfig> page = new PageImpl<>(List.of(config1, config2), pageable, 2);
         when(wageConfigRepository.findAllByOrderByCreatedAtDesc(pageable)).thenReturn(page);
 
-        Page<HistoryWageConfigResponse> responsePage = wageConfigService.getWageConfigHistory(pageable);
+        Page<HistoryWageConfigResponse> responsePage = wageConfigService.getWageConfigHistory(
+                adminRequester(),
+                pageable
+        );
 
         assertNotNull(responsePage);
         assertEquals(2, responsePage.getTotalElements());
@@ -253,6 +300,21 @@ class WageConfigServiceImplTest {
         assertEquals(config2.getId(), second.getId());
         assertFalse(second.getIsActive());
 
+        verify(authorizationService).requireWageConfigManager(adminRequester());
         verify(wageConfigRepository).findAllByOrderByCreatedAtDesc(pageable);
+    }
+
+    @Test
+    void getWageConfigHistoryShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        AuthenticatedUser requester = new AuthenticatedUser(UUID.randomUUID(), UserRole.SUPIR_TRUK);
+        Pageable pageable = PageRequest.of(0, 10);
+        doThrow(new ForbiddenException())
+                .when(authorizationService)
+                .requireWageConfigManager(requester);
+
+        assertThrows(ForbiddenException.class, () -> wageConfigService.getWageConfigHistory(requester, pageable));
+
+        verify(authorizationService).requireWageConfigManager(requester);
+        verifyNoInteractions(wageConfigRepository);
     }
 }

@@ -11,6 +11,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollUserResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
@@ -166,10 +168,11 @@ class PayrollControllerTest {
         Page<AdminPayrollResponse> page =
                 new PageImpl<>(List.of(mockAdminPayrollResponse()), PageRequest.of(0, 20), 1);
 
-        when(payrollService.getAllPayrolls(any()))
+        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/payrolls")
+                        .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
@@ -180,13 +183,17 @@ class PayrollControllerTest {
 
     @Test
     void getAllPayrollsFail() {
+        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any()))
+                .thenThrow(new ForbiddenException());
+
         ServletException exception = assertThrows(ServletException.class, () ->
                 mockMvc.perform(get("/api/v1/payrolls")
+                                .requestAttr("userId", UUID.randomUUID().toString())
                                 .requestAttr("userRole", "BURUH"))
                         .andReturn()
         );
 
-        assertInstanceOf(RuntimeException.class, exception.getCause());
+        assertInstanceOf(ForbiddenException.class, exception.getCause());
         assertEquals("Forbidden", exception.getCause().getMessage());
     }
 
@@ -197,11 +204,12 @@ class PayrollControllerTest {
         Page<PayrollResponse> page =
                 new PageImpl<>(List.of(mockPayrollResponse()), PageRequest.of(0, 20), 1);
 
-        when(payrollService.getMyPayrolls(any(UUID.class), any()))
+        when(payrollService.getMyPayrolls(any(AuthenticatedUser.class), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/payrolls/me")
-                        .requestAttr("userId", userId.toString()))
+                        .requestAttr("userId", userId.toString())
+                        .requestAttr("userRole", "BURUH"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("My payrolls retrieved successfully"))
@@ -213,10 +221,12 @@ class PayrollControllerTest {
     void getPayrollByIdSuccess() throws Exception {
         UUID payrollId = UUID.randomUUID();
 
-        when(payrollService.getPayrollById(payrollId))
+        when(payrollService.getPayrollById(any(UUID.class), any(AuthenticatedUser.class)))
                 .thenReturn(mockPayrollDetailResponse());
 
-        mockMvc.perform(get("/api/v1/payrolls/" + payrollId))
+        mockMvc.perform(get("/api/v1/payrolls/" + payrollId)
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("Payroll detail retrieved successfully"))
@@ -229,11 +239,12 @@ class PayrollControllerTest {
         UUID payrollId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
 
-        when(payrollService.acceptPayroll(any(UUID.class), any(UUID.class)))
+        when(payrollService.acceptPayroll(any(UUID.class), any(AuthenticatedUser.class)))
                 .thenReturn(mockAcceptPayrollResponse());
 
         mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/accept")
-                        .requestAttr("userId", adminId.toString()))
+                        .requestAttr("userId", adminId.toString())
+                        .requestAttr("userRole", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("Payroll accepted and disbursed successfully"))
@@ -250,11 +261,16 @@ class PayrollControllerTest {
         RejectPayrollRequest request = new RejectPayrollRequest();
         request.setRejectionReason("Invalid data");
 
-        when(payrollService.rejectPayroll(any(UUID.class), any(UUID.class), anyString()))
+        when(payrollService.rejectPayroll(
+                any(UUID.class),
+                any(AuthenticatedUser.class),
+                anyString()
+        ))
                 .thenReturn(mockRejectPayrollResponse());
 
         mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
                         .requestAttr("userId", adminId.toString())
+                        .requestAttr("userRole", "ADMIN")
                         .contentType("application/json")
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())

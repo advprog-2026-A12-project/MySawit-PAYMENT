@@ -12,6 +12,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WalletTransactionRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -28,20 +30,24 @@ public class WalletServiceImpl implements WalletService {
 
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
+    private final PaymentAuthorizationService authorizationService;
 
     @Override
-    public WalletResponse getMyWallet(UUID userId) {
-        return mapToMyWalletResponse(findWalletOrThrow(userId));
+    public WalletResponse getMyWallet(AuthenticatedUser requester) {
+        authorizationService.requireOwnWalletAccess(requester);
+        return mapToMyWalletResponse(findWalletOrThrow(requester.id()));
     }
 
     @Override
-    public AdminWalletResponse getWalletByUserId(UUID userId) {
+    public AdminWalletResponse getWalletByUserId(AuthenticatedUser requester, UUID userId) {
+        authorizationService.requireAdminWalletViewer(requester);
         return mapToAdminWalletResponse(findWalletOrThrow(userId));
     }
 
     @Override
-    public Page<WalletTransactionResponse> getMyTransactions(UUID userId, Pageable pageable) {
-        UUID walletId = findWalletOrThrow(userId).getId();
+    public Page<WalletTransactionResponse> getMyTransactions(AuthenticatedUser requester, Pageable pageable) {
+        authorizationService.requireOwnWalletAccess(requester);
+        UUID walletId = findWalletOrThrow(requester.id()).getId();
         Page<WalletTransaction> transactionPage = walletTransactionRepository.findByWalletId(walletId, pageable);
         return transactionPage.map(this::mapToWalletTransactionResponse);
     }

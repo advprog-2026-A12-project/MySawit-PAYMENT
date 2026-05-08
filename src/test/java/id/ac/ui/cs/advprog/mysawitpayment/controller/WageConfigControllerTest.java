@@ -6,6 +6,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CurrentWageConfigResponse
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PreviousWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.UpdatedByResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WageConfigService;
 import jakarta.servlet.ServletException;
@@ -26,9 +28,10 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
@@ -75,9 +78,10 @@ class WageConfigControllerTest {
                 .createdAt(now)
                 .build();
 
-        when(wageConfigService.getCurrentWageConfig()).thenReturn(response);
+        when(wageConfigService.getCurrentWageConfig(any(AuthenticatedUser.class))).thenReturn(response);
 
         mockMvc.perform(get("/api/v1/wage-configs/active")
+                        .requestAttr("userId", adminId.toString())
                         .requestAttr("userRole", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
@@ -92,7 +96,7 @@ class WageConfigControllerTest {
                 .andExpect(jsonPath("$.data.updatedBy.name").value("Admin"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
-        verify(wageConfigService).getCurrentWageConfig();
+        verify(wageConfigService).getCurrentWageConfig(any(AuthenticatedUser.class));
     }
 
     @Test
@@ -131,7 +135,7 @@ class WageConfigControllerTest {
                 .createdAt(now)
                 .build();
 
-        when(wageConfigService.createWageConfig(any(), eq(adminId))).thenReturn(response);
+        when(wageConfigService.createWageConfig(any(), any(AuthenticatedUser.class))).thenReturn(response);
 
         mockMvc.perform(post("/api/v1/wage-configs")
                         .requestAttr("userRole", "ADMIN")
@@ -152,7 +156,7 @@ class WageConfigControllerTest {
                 .andExpect(jsonPath("$.data.previousConfig").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
 
-        verify(wageConfigService).createWageConfig(any(), eq(adminId));
+        verify(wageConfigService).createWageConfig(any(), any(AuthenticatedUser.class));
     }
 
     @Test
@@ -174,7 +178,7 @@ class WageConfigControllerTest {
                         .content(invalidRequestBody))
                 .andExpect(status().isBadRequest());
 
-        verify(wageConfigService, never()).createWageConfig(any(), any());
+        verify(wageConfigService, never()).createWageConfig(any(), any(AuthenticatedUser.class));
     }
 
     @Test
@@ -213,9 +217,10 @@ class WageConfigControllerTest {
                 2
         );
 
-        when(wageConfigService.getWageConfigHistory(PageRequest.of(0, 20))).thenReturn(page);
+        when(wageConfigService.getWageConfigHistory(any(AuthenticatedUser.class), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/wage-configs/history")
+                        .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "ADMIN")
                         .param("page", "0")
                         .param("size", "20"))
@@ -235,17 +240,23 @@ class WageConfigControllerTest {
                 .andExpect(jsonPath("$.data.content[1].isActive").value(false))
                 .andExpect(jsonPath("$.timestamp").exists());
 
-        verify(wageConfigService).getWageConfigHistory(PageRequest.of(0, 20));
+        verify(wageConfigService).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
 
     @Test
     void getActiveWageConfigShouldThrowExceptionWhenRoleIsNotAdmin() {
-        assertThrows(ServletException.class, () ->
+        when(wageConfigService.getCurrentWageConfig(any(AuthenticatedUser.class)))
+                .thenThrow(new ForbiddenException());
+
+        ServletException ex = assertThrows(ServletException.class, () ->
                 mockMvc.perform(get("/api/v1/wage-configs/active")
+                        .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "BURUH"))
         );
 
-        verify(wageConfigService, never()).getCurrentWageConfig();
+        assertNotNull(ex.getCause());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
+        verify(wageConfigService).getCurrentWageConfig(any(AuthenticatedUser.class));
     }
 
     @Test
@@ -258,7 +269,10 @@ class WageConfigControllerTest {
             }
             """;
 
-        assertThrows(ServletException.class, () ->
+        when(wageConfigService.createWageConfig(any(), any(AuthenticatedUser.class)))
+                .thenThrow(new ForbiddenException());
+
+        ServletException ex = assertThrows(ServletException.class, () ->
                 mockMvc.perform(post("/api/v1/wage-configs")
                         .requestAttr("userRole", "BURUH")
                         .requestAttr("userId", UUID.randomUUID().toString())
@@ -266,16 +280,24 @@ class WageConfigControllerTest {
                         .content(requestBody))
         );
 
-        verify(wageConfigService, never()).createWageConfig(any(), any());
+        assertNotNull(ex.getCause());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
+        verify(wageConfigService).createWageConfig(any(), any(AuthenticatedUser.class));
     }
 
     @Test
     void getWageConfigHistoryShouldThrowExceptionWhenRoleIsNotAdmin() {
-        assertThrows(ServletException.class, () ->
+        when(wageConfigService.getWageConfigHistory(any(AuthenticatedUser.class), any()))
+                .thenThrow(new ForbiddenException());
+
+        ServletException ex = assertThrows(ServletException.class, () ->
                 mockMvc.perform(get("/api/v1/wage-configs/history")
+                        .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "MANDOR"))
         );
 
-        verify(wageConfigService, never()).getWageConfigHistory(any());
+        assertNotNull(ex.getCause());
+        assertEquals(ForbiddenException.class, ex.getCause().getClass());
+        verify(wageConfigService).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
 }

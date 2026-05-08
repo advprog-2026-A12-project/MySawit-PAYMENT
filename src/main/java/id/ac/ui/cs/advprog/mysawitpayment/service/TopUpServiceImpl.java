@@ -13,6 +13,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,15 +39,18 @@ public class TopUpServiceImpl implements TopUpService {
 
     private final WalletService walletService;
 
+    private final PaymentAuthorizationService authorizationService;
+
     @Override
-    public CreateTopUpResponse createTopUp(CreateTopUpRequest request, UUID adminId) {
+    public CreateTopUpResponse createTopUp(CreateTopUpRequest request, AuthenticatedUser requester) {
+        authorizationService.requireAdmin(requester);
         validateCreateTopUpRequest(request);
 
         BigDecimal amountSawitDollar = request.getAmountSawitDollar().setScale(2, RoundingMode.HALF_UP);
         BigDecimal amountIdr = amountSawitDollar.multiply(EXCHANGE_RATE).setScale(2, RoundingMode.HALF_UP);
 
         PaymentTransaction paymentTransaction = PaymentTransaction.builder()
-                .adminId(adminId)
+                .adminId(requester.id())
                 .amountSawitDollar(amountSawitDollar)
                 .amountIdr(amountIdr)
                 .paymentGateway("XENDIT")
@@ -56,7 +61,7 @@ public class TopUpServiceImpl implements TopUpService {
 
         CreateInvoiceResult invoiceResult = paymentGatewayClient.createTopupInvoice(
                 savedTransaction.getId(),
-                adminId,
+                requester.id(),
                 amountIdr
         );
 
@@ -78,8 +83,10 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     @Override
-    public Page<HistoryTopUpResponse> getMyTopUps(UUID adminId, Pageable pageable) {
-        return paymentTransactionRepository.findByAdminId(adminId, pageable)
+    public Page<HistoryTopUpResponse> getMyTopUps(AuthenticatedUser requester, Pageable pageable) {
+        authorizationService.requireAdmin(requester);
+
+        return paymentTransactionRepository.findByAdminId(requester.id(), pageable)
                 .map(this::mapToHistoryTopUpResponse);
     }
 
@@ -128,10 +135,11 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     @Override
-    public TopUpDetailResponse getTopUpDetail(UUID id, UUID adminId) {
-        // TODO: ganti jadi findByIdAndAdminId kalau nanti hanya admin tsb yang bisa liat detailnya
+    public TopUpDetailResponse getTopUpDetail(UUID id, AuthenticatedUser requester) {
         PaymentTransaction paymentTransaction = paymentTransactionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Top-up transaction not found"));
+
+        authorizationService.requireTopUpOwner(requester, paymentTransaction.getAdminId());
 
         return mapToTopUpDetailResponse(paymentTransaction);
     }

@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CurrentWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WageConfigService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -20,7 +21,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.OffsetDateTime;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/wage-configs")
@@ -31,9 +31,9 @@ public class WageConfigController {
 
     @GetMapping("/active")
     public ApiResponse<CurrentWageConfigResponse> getActiveWageConfig(HttpServletRequest request) {
-        validateAdmin(request);
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
 
-        CurrentWageConfigResponse response = wageConfigService.getCurrentWageConfig();
+        CurrentWageConfigResponse response = wageConfigService.getCurrentWageConfig(requester);
 
         return ApiResponse.<CurrentWageConfigResponse>builder()
                 .status("success")
@@ -48,12 +48,9 @@ public class WageConfigController {
             HttpServletRequest request,
             @Valid @RequestBody CreateWageConfigRequest createWageConfigRequest
     ) {
-        validateAdmin(request);
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
 
-        String userIdStr = (String) request.getAttribute("userId");
-        UUID adminId = UUID.fromString(userIdStr);
-
-        CreateWageConfigResponse response = wageConfigService.createWageConfig(createWageConfigRequest, adminId);
+        CreateWageConfigResponse response = wageConfigService.createWageConfig(createWageConfigRequest, requester);
 
         return ApiResponse.<CreateWageConfigResponse>builder()
                 .status("success")
@@ -69,10 +66,10 @@ public class WageConfigController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
-        validateAdmin(request);
+        AuthenticatedUser requester = AuthenticatedUser.from(request);
 
         Page<HistoryWageConfigResponse> wageConfigPage =
-                wageConfigService.getWageConfigHistory(PageRequest.of(page, size));
+                wageConfigService.getWageConfigHistory(requester, PageRequest.of(page, size));
 
         PageResponse<HistoryWageConfigResponse> pageResponse = PageResponse.<HistoryWageConfigResponse>builder()
                 .content(wageConfigPage.getContent())
@@ -90,12 +87,5 @@ public class WageConfigController {
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now())
                 .build();
-    }
-
-    private void validateAdmin(HttpServletRequest request) {
-        String role = (String) request.getAttribute("userRole");
-        if (!"ADMIN".equals(role)) {
-            throw new RuntimeException("Forbidden");
-        }
     }
 }
