@@ -8,9 +8,13 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageRequest;
@@ -42,6 +46,7 @@ class TopUpServiceImplTest {
     private PaymentGatewayClient paymentGatewayClient;
     private XenditProperties xenditProperties;
     private WalletService walletService;
+    private PaymentAuthorizationService authorizationService;
 
     private TopUpServiceImpl service;
 
@@ -51,6 +56,7 @@ class TopUpServiceImplTest {
         paymentGatewayClient = mock(PaymentGatewayClient.class);
         xenditProperties = new XenditProperties();
         walletService = mock(WalletService.class);
+        authorizationService = new PaymentAuthorizationService();
 
         xenditProperties.setWebhookToken("valid-token");
 
@@ -58,8 +64,13 @@ class TopUpServiceImplTest {
                 paymentTransactionRepository,
                 paymentGatewayClient,
                 xenditProperties,
-                walletService
+                walletService,
+                authorizationService
         );
+    }
+
+    private AuthenticatedUser adminUser(UUID adminId) {
+        return new AuthenticatedUser(adminId, UserRole.ADMIN);
     }
 
     @Test
@@ -112,7 +123,7 @@ class TopUpServiceImplTest {
                 eq(new BigDecimal("123500.00"))
         )).thenReturn(invoiceResult);
 
-        CreateTopUpResponse response = service.createTopUp(request, adminId);
+        CreateTopUpResponse response = service.createTopUp(request, adminUser(adminId));
 
         assertThat(response.getId()).isEqualTo(transactionId);
         assertThat(response.getAmountSawitDollar()).isEqualByComparingTo("12.35");
@@ -132,7 +143,7 @@ class TopUpServiceImplTest {
     void createTopUpShouldThrowWhenRequestIsNull() {
         UUID adminId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> service.createTopUp(null, adminId))
+        assertThatThrownBy(() -> service.createTopUp(null, adminUser(adminId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Amount SawitDollar is required");
 
@@ -145,7 +156,7 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
         CreateTopUpRequest request = new CreateTopUpRequest();
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Amount SawitDollar is required");
 
@@ -159,7 +170,7 @@ class TopUpServiceImplTest {
         CreateTopUpRequest request = new CreateTopUpRequest();
         setField(request, "amountSawitDollar", BigDecimal.ZERO);
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
@@ -173,7 +184,7 @@ class TopUpServiceImplTest {
         CreateTopUpRequest request = new CreateTopUpRequest();
         setField(request, "amountSawitDollar", new BigDecimal("-1"));
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminId))
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
@@ -202,7 +213,7 @@ class TopUpServiceImplTest {
         Page<PaymentTransaction> page = new PageImpl<>(List.of(tx), pageable, 1);
         when(paymentTransactionRepository.findByAdminId(adminId, pageable)).thenReturn(page);
 
-        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminId, pageable);
+        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), pageable);
 
         assertThat(result.getContent()).hasSize(1);
         HistoryTopUpResponse item = result.getContent().get(0);
@@ -466,7 +477,7 @@ class TopUpServiceImplTest {
 
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
 
-        TopUpDetailResponse response = service.getTopUpDetail(transactionId, adminId);
+        TopUpDetailResponse response = service.getTopUpDetail(transactionId, adminUser(adminId));
 
         assertThat(response.getId()).isEqualTo(transactionId);
         assertThat(response.getAdmin()).isNotNull();
@@ -489,9 +500,48 @@ class TopUpServiceImplTest {
 
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminId))
+        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(adminId)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Top-up transaction not found");
+    }
+
+    @Test
+    void createTopUpShouldThrowForbiddenWhenRequesterIsNotAdmin() {
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("10.00"));
+
+        AuthenticatedUser worker = new AuthenticatedUser(UUID.randomUUID(), UserRole.BURUH);
+
+        assertThatThrownBy(() -> service.createTopUp(request, worker))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Forbidden");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void getTopUpDetailShouldThrowForbiddenWhenAdminDoesNotOwnTopUp() {
+        UUID transactionId = UUID.randomUUID();
+        UUID ownerAdminId = UUID.randomUUID();
+        UUID otherAdminId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(ownerAdminId)
+                .amountSawitDollar(new BigDecimal("20.00"))
+                .amountIdr(new BigDecimal("200000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.SUCCESS)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+
+        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(otherAdminId)))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessage("Forbidden");
     }
 
     private static void setField(Object target, String fieldName, Object value) {
