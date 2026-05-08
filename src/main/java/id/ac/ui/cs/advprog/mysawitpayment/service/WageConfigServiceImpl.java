@@ -9,6 +9,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.UpdatedByResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ActiveWageConfigNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WageConfigRepository;
+import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
+import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +24,7 @@ import java.util.UUID;
 public class WageConfigServiceImpl implements WageConfigService {
 
     private final WageConfigRepository wageConfigRepository;
+    private final PaymentAuthorizationService authorizationService;
 
     @Override
     public WageConfig getActiveWageConfig() {
@@ -30,14 +33,16 @@ public class WageConfigServiceImpl implements WageConfigService {
     }
 
     @Override
-    public CurrentWageConfigResponse getCurrentWageConfig() {
+    public CurrentWageConfigResponse getCurrentWageConfig(AuthenticatedUser requester) {
+        authorizationService.requireWageConfigManager(requester);
         WageConfig wageConfig = getActiveWageConfig();
         return mapToCurrentWageConfigResponse(wageConfig);
     }
 
     @Override
     @Transactional
-    public CreateWageConfigResponse createWageConfig(CreateWageConfigRequest request, UUID adminId) {
+    public CreateWageConfigResponse createWageConfig(CreateWageConfigRequest request, AuthenticatedUser requester) {
+        authorizationService.requireWageConfigManager(requester);
         WageConfig previousActiveConfig = wageConfigRepository.findByIsActiveTrue().orElse(null);
 
         if (previousActiveConfig != null) {
@@ -49,7 +54,7 @@ public class WageConfigServiceImpl implements WageConfigService {
                 .upahBuruhPerKg(request.getUpahBuruhPerKg())
                 .upahSupirPerKg(request.getUpahSupirPerKg())
                 .upahMandorPerKg(request.getUpahMandorPerKg())
-                .updatedBy(adminId)
+                .updatedBy(requester.id())
                 .build();
 
         WageConfig savedConfig = wageConfigRepository.save(newConfig);
@@ -58,7 +63,8 @@ public class WageConfigServiceImpl implements WageConfigService {
     }
 
     @Override
-    public Page<HistoryWageConfigResponse> getWageConfigHistory(Pageable pageable) {
+    public Page<HistoryWageConfigResponse> getWageConfigHistory(AuthenticatedUser requester, Pageable pageable) {
+        authorizationService.requireWageConfigManager(requester);
         return wageConfigRepository.findAllByOrderByCreatedAtDesc(pageable)
                 .map(this::mapToHistoryWageConfigResponse);
     }
