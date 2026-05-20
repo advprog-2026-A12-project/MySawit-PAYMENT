@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.WalletTransactionFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
@@ -9,6 +10,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WalletService;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -100,18 +102,39 @@ class WalletControllerTest {
                 1
         );
 
-        when(walletService.getMyTransactions(any(AuthenticatedUser.class), any(Pageable.class)))
+        when(walletService.getMyTransactions(
+                any(AuthenticatedUser.class),
+                any(WalletTransactionFilter.class),
+                any(Pageable.class)
+        ))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/wallets/me/transactions")
                         .requestAttr("userId", userId.toString())
-                        .requestAttr("userRole", "BURUH"))
+                        .requestAttr("userRole", "BURUH")
+                        .param("transactionType", "CREDIT")
+                        .param("dateFrom", "2026-05-01")
+                        .param("dateTo", "2026-05-20")
+                        .param("sort", "amount,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content.length()").value(1))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20));
 
-        verify(walletService).getMyTransactions(any(AuthenticatedUser.class), any(Pageable.class));
+        ArgumentCaptor<WalletTransactionFilter> filterCaptor =
+                ArgumentCaptor.forClass(WalletTransactionFilter.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        verify(walletService).getMyTransactions(
+                any(AuthenticatedUser.class),
+                filterCaptor.capture(),
+                pageableCaptor.capture()
+        );
+
+        assertEquals("CREDIT", filterCaptor.getValue().transactionType().name());
+        assertEquals("2026-05-01T00:00Z", filterCaptor.getValue().dateFrom().toString());
+        assertEquals("2026-05-21T00:00Z", filterCaptor.getValue().dateTo().toString());
+        assertEquals("amount: ASC", pageableCaptor.getValue().getSort().toString());
     }
 
     @Test
@@ -126,10 +149,10 @@ class WalletControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
         assertEquals("Page must be >= 0", ex.getCause().getMessage());
 
-        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any());
+        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test
@@ -144,10 +167,10 @@ class WalletControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
         assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
 
-        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any());
+        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test
@@ -162,10 +185,10 @@ class WalletControllerTest {
         );
 
         assertNotNull(ex.getCause());
-        assertEquals(RuntimeException.class, ex.getCause().getClass());
+        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
         assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
 
-        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any());
+        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test

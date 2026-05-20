@@ -300,4 +300,34 @@ class WageConfigControllerTest {
         assertEquals(ForbiddenException.class, ex.getCause().getClass());
         verify(wageConfigService).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
+
+    @Test
+    void getWageConfigHistoryShouldRejectInvalidPage() {
+        ServletException ex = assertThrows(ServletException.class, () ->
+                mockMvc.perform(get("/api/v1/wage-configs/history")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .param("page", "-1"))
+        );
+
+        assertNotNull(ex.getCause());
+        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+        assertEquals("Page must be >= 0", ex.getCause().getMessage());
+        verify(wageConfigService, never()).getWageConfigHistory(any(AuthenticatedUser.class), any());
+    }
+
+    @Test
+    void getWageConfigHistoryShouldRejectInvalidSize() {
+        ServletException ex = assertThrows(ServletException.class, () ->
+                mockMvc.perform(get("/api/v1/wage-configs/history")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .param("size", "101"))
+        );
+
+        assertNotNull(ex.getCause());
+        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
+        assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
+        verify(wageConfigService, never()).getWageConfigHistory(any(AuthenticatedUser.class), any());
+    }
 }

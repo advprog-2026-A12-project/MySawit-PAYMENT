@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
@@ -13,6 +14,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -126,13 +128,15 @@ class TopUpControllerTest {
 
         AuthenticatedUser admin = new AuthenticatedUser(adminId, UserRole.ADMIN);
 
-        when(topUpService.getMyTopUps(eq(admin), any(Pageable.class))).thenReturn(page);
+        when(topUpService.getMyTopUps(eq(admin), any(TopUpFilter.class), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "ADMIN")
                         .requestAttr("userId", adminId.toString())
                         .param("page", "0")
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("status", "SUCCESS")
+                        .param("sort", "amountSawitDollar,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("Top-up history retrieved successfully"))
@@ -148,7 +152,12 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.first").value(true))
                 .andExpect(jsonPath("$.data.last").value(true));
 
-        verify(topUpService).getMyTopUps(eq(admin), any(Pageable.class));
+        ArgumentCaptor<TopUpFilter> filterCaptor = ArgumentCaptor.forClass(TopUpFilter.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        verify(topUpService).getMyTopUps(eq(admin), filterCaptor.capture(), pageableCaptor.capture());
+        assertEquals(PaymentTransactionStatus.SUCCESS, filterCaptor.getValue().status());
+        assertEquals("amountSawitDollar: ASC", pageableCaptor.getValue().getSort().toString());
     }
 
     @Test
@@ -219,7 +228,7 @@ class TopUpControllerTest {
 
     @Test
     void getMyTopUpsForbidden() {
-        when(topUpService.getMyTopUps(any(), any()))
+        when(topUpService.getMyTopUps(any(), any(), any()))
                 .thenThrow(new ForbiddenException());
 
         ServletException ex = assertThrows(ServletException.class, () ->
@@ -232,7 +241,7 @@ class TopUpControllerTest {
         assertEquals(ForbiddenException.class, ex.getCause().getClass());
         assertEquals("Forbidden", ex.getCause().getMessage());
 
-        verify(topUpService).getMyTopUps(any(), any());
+        verify(topUpService).getMyTopUps(any(), any(), any());
     }
 
     @Test
