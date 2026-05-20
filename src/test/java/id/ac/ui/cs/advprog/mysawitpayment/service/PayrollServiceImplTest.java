@@ -173,10 +173,10 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals("ACCEPTED", result.getStatus());
         assertEquals(adminId, result.getApprovedBy().getId());
-        assertEquals("", result.getApprovedBy().getName());
         assertNotNull(result.getApprovedAt());
 
         assertEquals(new BigDecimal("50000.00"), result.getDisbursement().getAdminWallet().getBalanceBefore());
@@ -250,11 +250,11 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals("REJECTED", result.getStatus());
         assertEquals(reason, result.getRejectionReason());
         assertEquals(adminId, result.getApprovedBy().getId());
-        assertEquals("", result.getApprovedBy().getName());
         assertNotNull(result.getApprovedAt());
 
         ArgumentCaptor<Payroll> payrollCaptor = ArgumentCaptor.forClass(Payroll.class);
@@ -338,6 +338,7 @@ class PayrollServiceImplTest {
         AdminPayrollResponse response = result.getContent().get(0);
         assertEquals(payrollId, response.getId());
         assertEquals(userId, response.getUser().getId());
+        assertEquals("BURUH", response.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), response.getAmount());
         assertEquals(new BigDecimal("250.50"), response.getKilogram());
         assertEquals(new BigDecimal("2.50"), response.getRatePerKg());
@@ -494,6 +495,7 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals(new BigDecimal("250.50"), result.getKilogram());
         assertEquals(new BigDecimal("2.50"), result.getRatePerKg());

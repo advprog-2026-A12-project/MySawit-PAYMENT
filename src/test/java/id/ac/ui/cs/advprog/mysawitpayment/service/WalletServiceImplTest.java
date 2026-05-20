@@ -45,7 +45,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -176,9 +175,6 @@ class WalletServiceImplTest {
         assertEquals("SawitDollar", result.getCurrency());
         assertEquals(wallet.getCreatedAt(), result.getCreatedAt());
         assertEquals(wallet.getUpdatedAt(), result.getUpdatedAt());
-
-        assertNull(result.getUserName());
-        assertNull(result.getUserRole());
 
         verify(authorizationService).requireAdminWalletViewer(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);

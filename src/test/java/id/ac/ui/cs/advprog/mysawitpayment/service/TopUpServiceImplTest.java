@@ -556,7 +556,6 @@ class TopUpServiceImplTest {
         assertThat(response.getId()).isEqualTo(transactionId);
         assertThat(response.getAdmin()).isNotNull();
         assertThat(response.getAdmin().getId()).isEqualTo(adminId);
-        assertThat(response.getAdmin().getName()).isNull();
         assertThat(response.getAmountSawitDollar()).isEqualByComparingTo("20.00");
         assertThat(response.getAmountIdr()).isEqualByComparingTo("200000.00");
         assertThat(response.getExchangeRate()).isEqualTo("1 SD = Rp 10,000");

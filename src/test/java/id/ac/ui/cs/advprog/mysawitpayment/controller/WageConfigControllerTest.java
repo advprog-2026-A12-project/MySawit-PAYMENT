@@ -72,7 +72,6 @@ class WageConfigControllerTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
                 .effectiveFrom(now)
                 .createdAt(now)
@@ -93,7 +92,7 @@ class WageConfigControllerTest {
                 .andExpect(jsonPath("$.data.currency").value("SawitDollar"))
                 .andExpect(jsonPath("$.data.isActive").value(true))
                 .andExpect(jsonPath("$.data.updatedBy.id").value(adminId.toString()))
-                .andExpect(jsonPath("$.data.updatedBy.name").value("Admin"))
+                .andExpect(jsonPath("$.data.updatedBy.name").doesNotExist())
                 .andExpect(jsonPath("$.timestamp").exists());
 
         verify(wageConfigService).getCurrentWageConfig(any(AuthenticatedUser.class));
@@ -129,7 +128,6 @@ class WageConfigControllerTest {
                         .build())
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
                 .effectiveFrom(now)
                 .createdAt(now)
@@ -152,7 +150,7 @@ class WageConfigControllerTest {
                 .andExpect(jsonPath("$.data.currency").value("SawitDollar"))
                 .andExpect(jsonPath("$.data.isActive").value(true))
                 .andExpect(jsonPath("$.data.updatedBy.id").value(adminId.toString()))
-                .andExpect(jsonPath("$.data.updatedBy.name").value("Admin"))
+                .andExpect(jsonPath("$.data.updatedBy.name").doesNotExist())
                 .andExpect(jsonPath("$.data.previousConfig").exists())
                 .andExpect(jsonPath("$.timestamp").exists());
 
@@ -193,7 +191,6 @@ class WageConfigControllerTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin")
                         .build())
                 .effectiveFrom(now)
                 .build();
@@ -206,7 +203,6 @@ class WageConfigControllerTest {
                 .isActive(false)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin Lama")
                         .build())
                 .effectiveFrom(now.minusDays(1))
                 .build();

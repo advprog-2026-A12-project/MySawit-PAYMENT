@@ -68,7 +68,6 @@ class PayrollControllerTest {
     private PayrollUserResponse mockUserResponse() {
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(UUID.randomUUID());
-        user.setName("Ahmad Buruh");
         user.setRole("BURUH");
         return user;
     }
@@ -76,7 +75,6 @@ class PayrollControllerTest {
     private PayrollApprovedByResponse mockApprovedByResponse() {
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
-        approvedBy.setName("Admin Utama");
         return approvedBy;
     }
 

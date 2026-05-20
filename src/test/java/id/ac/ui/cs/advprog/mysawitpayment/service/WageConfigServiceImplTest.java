@@ -94,7 +94,6 @@ class WageConfigServiceImplTest {
         assertTrue(response.getIsActive());
         assertNotNull(response.getUpdatedBy());
         assertEquals(adminId, response.getUpdatedBy().getId());
-        assertNull(response.getUpdatedBy().getName());
         assertEquals(activeConfig.getEffectiveFrom(), response.getEffectiveFrom());
         assertEquals(activeConfig.getCreatedAt(), response.getCreatedAt());
 
@@ -173,7 +172,6 @@ class WageConfigServiceImplTest {
 
         assertNotNull(response.getUpdatedBy());
         assertEquals(adminId, response.getUpdatedBy().getId());
-        assertNull(response.getUpdatedBy().getName());
 
         assertNotNull(response.getPreviousConfig());
         assertEquals(previousConfig.getId(), response.getPreviousConfig().getId());
@@ -293,7 +291,6 @@ class WageConfigServiceImplTest {
         assertEquals(config1.getUpahMandorPerKg(), first.getUpahMandorPerKg());
         assertTrue(first.getIsActive());
         assertEquals(config1.getUpdatedBy(), first.getUpdatedBy().getId());
-        assertNull(first.getUpdatedBy().getName());
         assertEquals(config1.getEffectiveFrom(), first.getEffectiveFrom());
 
         HistoryWageConfigResponse second = responsePage.getContent().get(1);

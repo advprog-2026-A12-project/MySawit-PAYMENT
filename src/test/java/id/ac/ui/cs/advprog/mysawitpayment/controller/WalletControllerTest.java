@@ -198,8 +198,6 @@ class WalletControllerTest {
         AdminWalletResponse response = new AdminWalletResponse();
         response.setId(UUID.randomUUID());
         response.setUserId(targetUserId);
-        response.setUserName("Budi");
-        response.setUserRole("BURUH");
         response.setBalance(new BigDecimal("2000.00"));
         response.setCurrency("SawitDollar");
         response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
@@ -209,10 +207,11 @@ class WalletControllerTest {
 
         mockMvc.perform(get("/api/v1/wallets/{userId}", targetUserId)
                         .requestAttr("userId", UUID.randomUUID().toString())
-                        .requestAttr("userRole", "ADMIN"))
+                .requestAttr("userRole", "ADMIN"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.userId").value(targetUserId.toString()))
-                .andExpect(jsonPath("$.data.userName").value("Budi"));
+                .andExpect(jsonPath("$.data.userName").doesNotExist())
+                .andExpect(jsonPath("$.data.userRole").doesNotExist());
 
         verify(walletService).getWalletByUserId(any(AuthenticatedUser.class), eq(targetUserId));
     }
