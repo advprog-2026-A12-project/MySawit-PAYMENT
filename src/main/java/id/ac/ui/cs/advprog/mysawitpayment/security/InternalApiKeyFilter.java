@@ -45,10 +45,11 @@ public class InternalApiKeyFilter implements Filter {
         String providedApiKey = request.getHeader(INTERNAL_API_KEY_HEADER);
 
         if (providedApiKey == null || !isValidApiKey(providedApiKey)) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid or missing internal API key\"}");
+            ErrorResponseWriter.write(
+                    response,
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Invalid or missing internal API key"
+            );
             return;
         }
 
