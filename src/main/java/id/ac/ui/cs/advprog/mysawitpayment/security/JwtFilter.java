@@ -36,6 +36,11 @@ public class JwtFilter implements Filter {
             return;
         }
 
+        if (path.startsWith("/actuator/")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         if ("/api/v1/topup/callback".equals(path)) {
             chain.doFilter(request, response);
             return;
