@@ -67,6 +67,7 @@ public class WageConfigController {
             @RequestParam(defaultValue = "20") int size
     ) {
         AuthenticatedUser requester = AuthenticatedUser.from(request);
+        PageableRequest.validatePageAndSize(page, size);
 
         Page<HistoryWageConfigResponse> wageConfigPage =
                 wageConfigService.getWageConfigHistory(requester, PageRequest.of(page, size));
