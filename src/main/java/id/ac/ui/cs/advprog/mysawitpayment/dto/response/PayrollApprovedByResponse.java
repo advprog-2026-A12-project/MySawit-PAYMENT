@@ -9,6 +9,4 @@ import java.util.UUID;
 @Setter
 public class PayrollApprovedByResponse {
     private UUID id;
-
-    private String name;
 }

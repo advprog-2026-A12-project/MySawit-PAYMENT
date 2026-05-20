@@ -9,5 +9,4 @@ import java.util.UUID;
 @Builder
 public class UpdatedByResponse {
     private UUID id;
-    private String name;
 }
