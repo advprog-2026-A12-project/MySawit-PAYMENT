@@ -8,7 +8,6 @@ import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WalletService;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,8 +29,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -138,55 +135,46 @@ class WalletControllerTest {
     }
 
     @Test
-    void getTransactionsInvalidPage() {
+    void getTransactionsInvalidPage() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wallets/me/transactions")
+        mockMvc.perform(get("/api/v1/wallets/me/transactions")
                         .requestAttr("userId", userId.toString())
                         .requestAttr("userRole", "BURUH")
                         .param("page", "-1"))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-        assertEquals("Page must be >= 0", ex.getCause().getMessage());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Page must be >= 0"));
 
         verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test
-    void getTransactionsInvalidSize101() {
+    void getTransactionsInvalidSize101() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wallets/me/transactions")
+        mockMvc.perform(get("/api/v1/wallets/me/transactions")
                         .requestAttr("userId", userId.toString())
                         .requestAttr("userRole", "BURUH")
                         .param("size", "101"))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-        assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Size must be between 1 and 100"));
 
         verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test
-    void getTransactionsInvalidSizeZero() {
+    void getTransactionsInvalidSizeZero() throws Exception {
         UUID userId = UUID.randomUUID();
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wallets/me/transactions")
+        mockMvc.perform(get("/api/v1/wallets/me/transactions")
                         .requestAttr("userId", userId.toString())
                         .requestAttr("userRole", "BURUH")
                         .param("size", "0"))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-        assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Size must be between 1 and 100"));
 
         verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
     }
@@ -217,19 +205,17 @@ class WalletControllerTest {
     }
 
     @Test
-    void getWalletByUserIdForbidden() {
+    void getWalletByUserIdForbidden() throws Exception {
         UUID targetUserId = UUID.randomUUID();
         when(walletService.getWalletByUserId(any(AuthenticatedUser.class), eq(targetUserId)))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wallets/{userId}", targetUserId)
+        mockMvc.perform(get("/api/v1/wallets/{userId}", targetUserId)
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "BURUH"))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
         verify(walletService).getWalletByUserId(any(AuthenticatedUser.class), eq(targetUserId));
     }

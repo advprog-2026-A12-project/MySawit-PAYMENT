@@ -17,7 +17,6 @@ import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,8 +36,6 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -211,19 +208,17 @@ class PayrollControllerTest {
     }
 
     @Test
-    void getAllPayrollsFail() {
+    void getAllPayrollsFail() throws Exception {
         when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any(PayrollFilter.class), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException exception = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/payrolls")
-                                .requestAttr("userId", UUID.randomUUID().toString())
-                                .requestAttr("userRole", "BURUH"))
-                        .andReturn()
-        );
-
-        assertInstanceOf(ForbiddenException.class, exception.getCause());
-        assertEquals("Forbidden", exception.getCause().getMessage());
+        mockMvc.perform(get("/api/v1/payrolls")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "BURUH"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

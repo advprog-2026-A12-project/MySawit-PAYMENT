@@ -7,11 +7,11 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.GlobalExceptionHandler;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -30,9 +30,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -55,7 +53,9 @@ class TopUpControllerTest {
         topUpService = mock(TopUpService.class);
         TopUpController controller = new TopUpController(topUpService);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -250,7 +250,7 @@ class TopUpControllerTest {
     }
 
     @Test
-    void createTopUpForbidden() {
+    void createTopUpForbidden() throws Exception {
         when(topUpService.createTopUp(any(), any()))
                 .thenThrow(new ForbiddenException());
 
@@ -260,54 +260,46 @@ class TopUpControllerTest {
             }
             """;
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(post("/api/v1/topup")
+        mockMvc.perform(post("/api/v1/topup")
                         .requestAttr("userRole", "BURUH")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         verify(topUpService).createTopUp(any(), any());
     }
 
     @Test
-    void getMyTopUpsForbidden() {
+    void getMyTopUpsForbidden() throws Exception {
         when(topUpService.getMyTopUps(any(), any(), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/topup")
+        mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "MANDOR")
                         .requestAttr("userId", UUID.randomUUID().toString()))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
         verify(topUpService).getMyTopUps(any(), any(), any());
     }
 
     @Test
-    void getTopUpDetailForbidden() {
+    void getTopUpDetailForbidden() throws Exception {
         UUID topupId = UUID.randomUUID();
         when(topUpService.getTopUpDetail(eq(topupId), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/topup/{topupId}", topupId)
+        mockMvc.perform(get("/api/v1/topup/{topupId}", topupId)
                         .requestAttr("userRole", "SUPIR_TRUK")
                         .requestAttr("userId", UUID.randomUUID().toString()))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
         verify(topUpService).getTopUpDetail(eq(topupId), any());
     }

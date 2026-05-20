@@ -10,7 +10,6 @@ import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.WageConfigService;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -28,9 +27,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -240,23 +236,22 @@ class WageConfigControllerTest {
     }
 
     @Test
-    void getActiveWageConfigShouldThrowExceptionWhenRoleIsNotAdmin() {
+    void getActiveWageConfigShouldThrowExceptionWhenRoleIsNotAdmin() throws Exception {
         when(wageConfigService.getCurrentWageConfig(any(AuthenticatedUser.class)))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wage-configs/active")
+        mockMvc.perform(get("/api/v1/wage-configs/active")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "BURUH"))
-        );
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         verify(wageConfigService).getCurrentWageConfig(any(AuthenticatedUser.class));
     }
 
     @Test
-    void createNewWageConfigShouldThrowExceptionWhenRoleIsNotAdmin() {
+    void createNewWageConfigShouldThrowExceptionWhenRoleIsNotAdmin() throws Exception {
         String requestBody = """
             {
               "upahBuruhPerKg": 3.00,
@@ -268,62 +263,56 @@ class WageConfigControllerTest {
         when(wageConfigService.createWageConfig(any(), any(AuthenticatedUser.class)))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(post("/api/v1/wage-configs")
+        mockMvc.perform(post("/api/v1/wage-configs")
                         .requestAttr("userRole", "BURUH")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-        );
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         verify(wageConfigService).createWageConfig(any(), any(AuthenticatedUser.class));
     }
 
     @Test
-    void getWageConfigHistoryShouldThrowExceptionWhenRoleIsNotAdmin() {
+    void getWageConfigHistoryShouldThrowExceptionWhenRoleIsNotAdmin() throws Exception {
         when(wageConfigService.getWageConfigHistory(any(AuthenticatedUser.class), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wage-configs/history")
+        mockMvc.perform(get("/api/v1/wage-configs/history")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "MANDOR"))
-        );
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
         verify(wageConfigService).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
 
     @Test
-    void getWageConfigHistoryShouldRejectInvalidPage() {
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wage-configs/history")
+    void getWageConfigHistoryShouldRejectInvalidPage() throws Exception {
+        mockMvc.perform(get("/api/v1/wage-configs/history")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "ADMIN")
                         .param("page", "-1"))
-        );
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Page must be >= 0"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-        assertEquals("Page must be >= 0", ex.getCause().getMessage());
         verify(wageConfigService, never()).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
 
     @Test
-    void getWageConfigHistoryShouldRejectInvalidSize() {
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/wage-configs/history")
+    void getWageConfigHistoryShouldRejectInvalidSize() throws Exception {
+        mockMvc.perform(get("/api/v1/wage-configs/history")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .requestAttr("userRole", "ADMIN")
                         .param("size", "101"))
-        );
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Size must be between 1 and 100"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(IllegalArgumentException.class, ex.getCause().getClass());
-        assertEquals("Size must be between 1 and 100", ex.getCause().getMessage());
         verify(wageConfigService, never()).getWageConfigHistory(any(AuthenticatedUser.class), any());
     }
 }
