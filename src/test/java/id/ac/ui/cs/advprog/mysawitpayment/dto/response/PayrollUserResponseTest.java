@@ -13,15 +13,12 @@ class PayrollUserResponseTest {
         PayrollUserResponse response = new PayrollUserResponse();
 
         UUID id = UUID.randomUUID();
-        String name = "Budi Mandor";
         String role = "MANDOR";
 
         response.setId(id);
-        response.setName(name);
         response.setRole(role);
 
         assertEquals(id, response.getId());
-        assertEquals(name, response.getName());
         assertEquals(role, response.getRole());
     }
 }

@@ -17,7 +17,6 @@ class AdminPayrollResponseTest {
         UUID id = UUID.randomUUID();
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(UUID.randomUUID());
-        user.setName("Budi Mandor");
         user.setRole("MANDOR");
 
         BigDecimal amount = BigDecimal.valueOf(562.61);

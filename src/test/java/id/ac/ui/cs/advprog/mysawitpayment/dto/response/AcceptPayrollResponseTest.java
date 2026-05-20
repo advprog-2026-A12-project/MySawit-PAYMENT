@@ -18,7 +18,6 @@ class AcceptPayrollResponseTest {
 
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(UUID.randomUUID());
-        user.setName("Ahmad Buruh");
         user.setRole("BURUH");
 
         BigDecimal amount = BigDecimal.valueOf(562.61);
@@ -26,7 +25,6 @@ class AcceptPayrollResponseTest {
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
-        approvedBy.setName("Admin Utama");
 
         OffsetDateTime approvedAt = OffsetDateTime.now();
 
