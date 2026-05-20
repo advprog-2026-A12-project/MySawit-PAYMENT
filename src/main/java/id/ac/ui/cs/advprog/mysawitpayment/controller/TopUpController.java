@@ -12,6 +12,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -43,7 +44,7 @@ public class TopUpController {
     @PostMapping
     public ApiResponse<CreateTopUpResponse> createTopUp(
             HttpServletRequest request,
-            @RequestBody CreateTopUpRequest requestBody
+            @Valid @RequestBody CreateTopUpRequest requestBody
     ) {
         CreateTopUpResponse response = topUpService.createTopUp(
                 requestBody,

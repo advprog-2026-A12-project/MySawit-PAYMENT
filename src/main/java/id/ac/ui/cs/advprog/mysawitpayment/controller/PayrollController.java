@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -197,7 +198,7 @@ public class PayrollController {
     public ApiResponse<RejectPayrollResponse> rejectPayroll(
             HttpServletRequest request,
             @PathVariable UUID payrollId,
-            @RequestBody RejectPayrollRequest requestBody
+            @Valid @RequestBody RejectPayrollRequest requestBody
     ) {
 
         RejectPayrollResponse response =
