@@ -131,10 +131,8 @@ public class WageConfigServiceImpl implements WageConfigService {
     }
 
     private UpdatedByResponse mapToUpdatedByResponse(UUID updatedById) {
-        // TODO: Ambil nama admin
         return UpdatedByResponse.builder()
                 .id(updatedById)
-                .name(null)
                 .build();
     }
 }

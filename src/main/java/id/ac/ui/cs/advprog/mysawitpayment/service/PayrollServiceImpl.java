@@ -305,7 +305,7 @@ public class PayrollServiceImpl implements PayrollService {
         PayrollUserResponse user = new PayrollUserResponse();
 
         user.setId(payroll.getUserId());
-
+        user.setRole(payroll.getUserRole().name());
 
         response.setId(payroll.getId());
         response.setUser(user);
@@ -326,6 +326,7 @@ public class PayrollServiceImpl implements PayrollService {
         PayrollUserResponse user = new PayrollUserResponse();
 
         user.setId(payroll.getUserId());
+        user.setRole(payroll.getUserRole().name());
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
 
@@ -359,14 +360,10 @@ public class PayrollServiceImpl implements PayrollService {
     ) {
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(payroll.getUserId());
-        //TODO: ambil dari auth
-        user.setName("");
-        user.setRole("");
+        user.setRole(payroll.getUserRole().name());
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(payroll.getApprovedBy());
-        // TODO: ambil dari auth
-        approvedBy.setName("");
 
         PayrollWalletResponse adminWallet = new PayrollWalletResponse();
         adminWallet.setBalanceBefore(adminWalletResult.getBalanceBefore());
@@ -395,14 +392,10 @@ public class PayrollServiceImpl implements PayrollService {
     private RejectPayrollResponse mapToRejectResponse(Payroll payroll) {
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(payroll.getUserId());
-        //TODO: ambil dari auth
-        user.setName("");
-        user.setRole("");
+        user.setRole(payroll.getUserRole().name());
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(payroll.getApprovedBy());
-        // TODO: ambil dari auth
-        approvedBy.setName("");
 
         RejectPayrollResponse response = new RejectPayrollResponse();
 

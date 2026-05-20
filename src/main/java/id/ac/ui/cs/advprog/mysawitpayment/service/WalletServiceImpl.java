@@ -219,9 +219,6 @@ public class WalletServiceImpl implements WalletService {
         response.setCreatedAt(wallet.getCreatedAt());
         response.setCurrency("SawitDollar");
         response.setUpdatedAt(wallet.getUpdatedAt());
-        // TODO: ambil field null ini dari auth
-        response.setUserName(null);
-        response.setUserRole(null);
         return response;
     }
 

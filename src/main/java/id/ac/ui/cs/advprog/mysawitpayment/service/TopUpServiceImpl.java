@@ -193,7 +193,6 @@ public class TopUpServiceImpl implements TopUpService {
                 .id(paymentTransaction.getId())
                 .admin(AdminReferenceResponse.builder()
                         .id(paymentTransaction.getAdminId())
-                        .name(null) // TODO: isi nanti kalau sudah ada source nama admin
                         .build())
                 .amountSawitDollar(paymentTransaction.getAmountSawitDollar())
                 .amountIdr(paymentTransaction.getAmountIdr())
