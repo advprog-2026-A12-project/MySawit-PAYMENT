@@ -47,6 +47,27 @@ class RejectPayrollRequestTest {
     }
 
     @Test
+    void testInvalidRejectionReasonNull() {
+        RejectPayrollRequest request = new RejectPayrollRequest();
+
+        Set<ConstraintViolation<RejectPayrollRequest>> violations =
+                validator.validate(request);
+
+        assertFalse(violations.isEmpty());
+    }
+
+    @Test
+    void testInvalidRejectionReasonBlank() {
+        RejectPayrollRequest request = new RejectPayrollRequest();
+        request.setRejectionReason("   ");
+
+        Set<ConstraintViolation<RejectPayrollRequest>> violations =
+                validator.validate(request);
+
+        assertFalse(violations.isEmpty());
+    }
+
+    @Test
     void testGetterSetter() {
         RejectPayrollRequest request = new RejectPayrollRequest();
 

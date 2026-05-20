@@ -41,6 +41,8 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -323,5 +325,47 @@ class PayrollControllerTest {
                 .andExpect(jsonPath("$.message").value("Payroll rejected"))
                 .andExpect(jsonPath("$.data.status").value("REJECTED"))
                 .andExpect(jsonPath("$.data.rejectionReason").value("Invalid data"));
+    }
+
+    @Test
+    void rejectPayrollShouldRejectMissingReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
+    }
+
+    @Test
+    void rejectPayrollShouldRejectBlankReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
+    }
+
+    @Test
+    void rejectPayrollShouldRejectTooShortReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"short\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
     }
 }

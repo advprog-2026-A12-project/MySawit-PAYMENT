@@ -38,6 +38,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -103,6 +104,54 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.paymentUrl").value("https://pay.xendit.co/invoice"));
 
         verify(topUpService).createTopUp(any(), eq(admin));
+    }
+
+    @Test
+    void createTopUpShouldRejectMissingAmount() throws Exception {
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
+    }
+
+    @Test
+    void createTopUpShouldRejectNonPositiveAmount() throws Exception {
+        String requestBody = """
+                {
+                  "amountSawitDollar": 0
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
+    }
+
+    @Test
+    void createTopUpShouldRejectAmountAboveMaximum() throws Exception {
+        String requestBody = """
+                {
+                  "amountSawitDollar": 100000.01
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
     }
 
     @Test
