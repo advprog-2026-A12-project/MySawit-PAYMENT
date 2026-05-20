@@ -11,6 +11,9 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminReferenceResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
@@ -34,6 +37,7 @@ import java.util.UUID;
 public class TopUpServiceImpl implements TopUpService {
 
     private static final BigDecimal EXCHANGE_RATE = BigDecimal.valueOf(10_000);
+    private static final BigDecimal MAX_TOP_UP_AMOUNT = new BigDecimal("100000.00");
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -101,13 +105,13 @@ public class TopUpServiceImpl implements TopUpService {
     @Override
     public void handleXenditCallback(String callbackToken, XenditCallbackRequest request) {
         if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
-            throw new RuntimeException("Invalid Xendit callback token");
+            throw new ForbiddenException("Invalid Xendit callback token");
         }
 
         UUID transactionId = UUID.fromString(request.getExternalId());
 
         PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+                .orElseThrow(PaymentTransactionNotFoundException::new);
 
         if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
             return;
@@ -145,7 +149,7 @@ public class TopUpServiceImpl implements TopUpService {
     @Override
     public TopUpDetailResponse getTopUpDetail(UUID id, AuthenticatedUser requester) {
         PaymentTransaction paymentTransaction = paymentTransactionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Top-up transaction not found"));
+                .orElseThrow(() -> new PaymentTransactionNotFoundException("Top-up transaction not found"));
 
         authorizationService.requireTopUpOwner(requester, paymentTransaction.getAdminId());
 
@@ -154,11 +158,15 @@ public class TopUpServiceImpl implements TopUpService {
 
     private void validateCreateTopUpRequest(CreateTopUpRequest request) {
         if (request == null || request.getAmountSawitDollar() == null) {
-            throw new IllegalArgumentException("Amount SawitDollar is required");
+            throw new InvalidAmountException("Amount SawitDollar is required");
         }
 
         if (request.getAmountSawitDollar().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount SawitDollar must be greater than 0");
+            throw new InvalidAmountException("Amount SawitDollar must be greater than 0");
+        }
+
+        if (request.getAmountSawitDollar().compareTo(MAX_TOP_UP_AMOUNT) > 0) {
+            throw new InvalidAmountException("Amount SawitDollar must be at most 100000");
         }
     }
 
