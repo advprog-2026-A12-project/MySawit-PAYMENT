@@ -4,24 +4,35 @@ import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -144,7 +155,7 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
 
         assertThatThrownBy(() -> service.createTopUp(null, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -157,7 +168,7 @@ class TopUpServiceImplTest {
         CreateTopUpRequest request = new CreateTopUpRequest();
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -171,7 +182,7 @@ class TopUpServiceImplTest {
         setField(request, "amountSawitDollar", BigDecimal.ZERO);
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -185,8 +196,22 @@ class TopUpServiceImplTest {
         setField(request, "amountSawitDollar", new BigDecimal("-1"));
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenAmountExceedsMaximum() {
+        UUID adminId = UUID.randomUUID();
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("100000.01"));
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+                .isInstanceOf(InvalidAmountException.class)
+                .hasMessage("Amount SawitDollar must be at most 100000");
 
         verify(paymentTransactionRepository, never()).save(any());
         verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
@@ -211,9 +236,10 @@ class TopUpServiceImplTest {
                 .build();
 
         Page<PaymentTransaction> page = new PageImpl<>(List.of(tx), pageable, 1);
-        when(paymentTransactionRepository.findByAdminId(adminId, pageable)).thenReturn(page);
+        TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.SUCCESS);
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
 
-        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), pageable);
+        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), filter, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         HistoryTopUpResponse item = result.getContent().get(0);
@@ -227,11 +253,75 @@ class TopUpServiceImplTest {
     }
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTopUpsShouldBuildSpecificationWithStatusFilter() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.EXPIRED);
+
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        service.getMyTopUps(adminUser(adminId), filter, pageable);
+
+        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<PaymentTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertThat(result).isNotNull();
+        verify(cb, times(2)).equal(any(Expression.class), any(Object.class));
+        verify(cb).and(any(Predicate[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTopUpsShouldBuildSpecificationWithoutStatusFilter() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        service.getMyTopUps(adminUser(adminId), null, pageable);
+
+        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<PaymentTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertThat(result).isNotNull();
+        verify(cb).equal(any(Expression.class), eq(adminId));
+        verify(cb, times(1)).equal(any(Expression.class), any(Object.class));
+        verify(cb).and(any(Predicate[].class));
+    }
+
+    @Test
     void handleXenditCallbackShouldThrowWhenTokenIsNull() {
         XenditCallbackRequest request = new XenditCallbackRequest();
 
         assertThatThrownBy(() -> service.handleXenditCallback(null, request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
         verify(paymentTransactionRepository, never()).findById(any());
@@ -242,7 +332,7 @@ class TopUpServiceImplTest {
         XenditCallbackRequest request = new XenditCallbackRequest();
 
         assertThatThrownBy(() -> service.handleXenditCallback("wrong-token", request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
         verify(paymentTransactionRepository, never()).findById(any());
@@ -257,7 +347,7 @@ class TopUpServiceImplTest {
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Payment transaction not found");
     }
 
@@ -482,7 +572,6 @@ class TopUpServiceImplTest {
         assertThat(response.getId()).isEqualTo(transactionId);
         assertThat(response.getAdmin()).isNotNull();
         assertThat(response.getAdmin().getId()).isEqualTo(adminId);
-        assertThat(response.getAdmin().getName()).isNull();
         assertThat(response.getAmountSawitDollar()).isEqualByComparingTo("20.00");
         assertThat(response.getAmountIdr()).isEqualByComparingTo("200000.00");
         assertThat(response.getExchangeRate()).isEqualTo("1 SD = Rp 10,000");
@@ -501,7 +590,7 @@ class TopUpServiceImplTest {
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Top-up transaction not found");
     }
 

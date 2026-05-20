@@ -28,7 +28,6 @@ class CurrentWageConfigResponseTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin")
                         .build())
                 .effectiveFrom(OffsetDateTime.now())
                 .createdAt(OffsetDateTime.now())
@@ -58,7 +57,6 @@ class CurrentWageConfigResponseTest {
                 .isActive(false)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
                 .effectiveFrom(now)
                 .createdAt(now)
@@ -73,6 +71,6 @@ class CurrentWageConfigResponseTest {
         assertThat(json).contains("\"currency\":\"SawitDollar\"");
         assertThat(json).contains("\"isActive\":false");
         assertThat(json).contains(adminId.toString());
-        assertThat(json).contains("\"name\":\"Admin\"");
+        assertThat(json).doesNotContain("\"name\":");
     }
 }

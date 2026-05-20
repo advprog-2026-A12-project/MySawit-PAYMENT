@@ -2,6 +2,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.RejectPayrollRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.PayrollFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollApprovedByResponse;
@@ -16,8 +17,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.JwtFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -26,6 +27,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -34,10 +36,10 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -65,7 +67,6 @@ class PayrollControllerTest {
     private PayrollUserResponse mockUserResponse() {
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(UUID.randomUUID());
-        user.setName("Ahmad Buruh");
         user.setRole("BURUH");
         return user;
     }
@@ -73,7 +74,6 @@ class PayrollControllerTest {
     private PayrollApprovedByResponse mockApprovedByResponse() {
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
-        approvedBy.setName("Admin Utama");
         return approvedBy;
     }
 
@@ -168,33 +168,57 @@ class PayrollControllerTest {
         Page<AdminPayrollResponse> page =
                 new PageImpl<>(List.of(mockAdminPayrollResponse()), PageRequest.of(0, 20), 1);
 
-        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any()))
+        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any(PayrollFilter.class), any()))
                 .thenReturn(page);
+
+        UUID targetUserId = UUID.randomUUID();
 
         mockMvc.perform(get("/api/v1/payrolls")
                         .requestAttr("userId", UUID.randomUUID().toString())
-                        .requestAttr("userRole", "ADMIN"))
+                        .requestAttr("userRole", "ADMIN")
+                        .param("userId", targetUserId.toString())
+                        .param("status", "PENDING")
+                        .param("userRole", "BURUH")
+                        .param("referenceType", "HARVEST")
+                        .param("dateFrom", "2026-05-01")
+                        .param("dateTo", "2026-05-20")
+                        .param("sort", "kilogram,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("Payrolls retrieved successfully"))
                 .andExpect(jsonPath("$.data.content[0].status").value("PENDING"))
                 .andExpect(jsonPath("$.data.content[0].referenceType").value("HARVEST"));
+
+        ArgumentCaptor<PayrollFilter> filterCaptor = ArgumentCaptor.forClass(PayrollFilter.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        org.mockito.Mockito.verify(payrollService).getAllPayrolls(
+                any(AuthenticatedUser.class),
+                filterCaptor.capture(),
+                pageableCaptor.capture()
+        );
+
+        assertEquals(targetUserId, filterCaptor.getValue().userId());
+        assertEquals("PENDING", filterCaptor.getValue().status().name());
+        assertEquals("BURUH", filterCaptor.getValue().userRole().name());
+        assertEquals("HARVEST", filterCaptor.getValue().referenceType().name());
+        assertEquals("2026-05-01T00:00Z", filterCaptor.getValue().dateFrom().toString());
+        assertEquals("2026-05-21T00:00Z", filterCaptor.getValue().dateTo().toString());
+        assertEquals("kilogram: ASC", pageableCaptor.getValue().getSort().toString());
     }
 
     @Test
-    void getAllPayrollsFail() {
-        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any()))
+    void getAllPayrollsFail() throws Exception {
+        when(payrollService.getAllPayrolls(any(AuthenticatedUser.class), any(PayrollFilter.class), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException exception = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/payrolls")
-                                .requestAttr("userId", UUID.randomUUID().toString())
-                                .requestAttr("userRole", "BURUH"))
-                        .andReturn()
-        );
-
-        assertInstanceOf(ForbiddenException.class, exception.getCause());
-        assertEquals("Forbidden", exception.getCause().getMessage());
+        mockMvc.perform(get("/api/v1/payrolls")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "BURUH"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -204,17 +228,35 @@ class PayrollControllerTest {
         Page<PayrollResponse> page =
                 new PageImpl<>(List.of(mockPayrollResponse()), PageRequest.of(0, 20), 1);
 
-        when(payrollService.getMyPayrolls(any(AuthenticatedUser.class), any()))
+        when(payrollService.getMyPayrolls(any(AuthenticatedUser.class), any(PayrollFilter.class), any()))
                 .thenReturn(page);
 
         mockMvc.perform(get("/api/v1/payrolls/me")
                         .requestAttr("userId", userId.toString())
-                        .requestAttr("userRole", "BURUH"))
+                        .requestAttr("userRole", "BURUH")
+                        .param("status", "ACCEPTED")
+                        .param("dateFrom", "2026-05-01")
+                        .param("dateTo", "2026-05-20")
+                        .param("sort", "amount,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("My payrolls retrieved successfully"))
                 .andExpect(jsonPath("$.data.content[0].status").value("PENDING"))
                 .andExpect(jsonPath("$.data.content[0].referenceType").value("HARVEST"));
+
+        ArgumentCaptor<PayrollFilter> filterCaptor = ArgumentCaptor.forClass(PayrollFilter.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        org.mockito.Mockito.verify(payrollService).getMyPayrolls(
+                any(AuthenticatedUser.class),
+                filterCaptor.capture(),
+                pageableCaptor.capture()
+        );
+
+        assertEquals("ACCEPTED", filterCaptor.getValue().status().name());
+        assertEquals("2026-05-01T00:00Z", filterCaptor.getValue().dateFrom().toString());
+        assertEquals("2026-05-21T00:00Z", filterCaptor.getValue().dateTo().toString());
+        assertEquals("amount: ASC", pageableCaptor.getValue().getSort().toString());
     }
 
     @Test
@@ -278,5 +320,47 @@ class PayrollControllerTest {
                 .andExpect(jsonPath("$.message").value("Payroll rejected"))
                 .andExpect(jsonPath("$.data.status").value("REJECTED"))
                 .andExpect(jsonPath("$.data.rejectionReason").value("Invalid data"));
+    }
+
+    @Test
+    void rejectPayrollShouldRejectMissingReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
+    }
+
+    @Test
+    void rejectPayrollShouldRejectBlankReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"   \"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
+    }
+
+    @Test
+    void rejectPayrollShouldRejectTooShortReason() throws Exception {
+        UUID payrollId = UUID.randomUUID();
+
+        mockMvc.perform(put("/api/v1/payrolls/" + payrollId + "/reject")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .contentType("application/json")
+                        .content("{\"rejectionReason\":\"short\"}"))
+                .andExpect(status().isBadRequest());
+
+        verify(payrollService, never()).rejectPayroll(any(UUID.class), any(AuthenticatedUser.class), any());
     }
 }

@@ -27,7 +27,6 @@ class HistoryWageConfigResponseTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin")
                         .build())
                 .effectiveFrom(OffsetDateTime.now())
                 .build();
@@ -55,7 +54,6 @@ class HistoryWageConfigResponseTest {
                 .isActive(false)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
                 .effectiveFrom(now)
                 .build();
@@ -68,6 +66,6 @@ class HistoryWageConfigResponseTest {
         assertThat(json).contains("\"upahMandorPerKg\":1.5");
         assertThat(json).contains("\"isActive\":false");
         assertThat(json).contains(adminId.toString());
-        assertThat(json).contains("\"name\":\"Admin\"");
+        assertThat(json).doesNotContain("\"name\":");
     }
 }

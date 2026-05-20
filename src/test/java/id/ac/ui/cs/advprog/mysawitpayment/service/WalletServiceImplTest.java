@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.WalletTransactionFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
@@ -17,6 +18,12 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +34,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -37,7 +45,6 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -48,6 +55,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class WalletServiceImplTest {
@@ -167,9 +176,6 @@ class WalletServiceImplTest {
         assertEquals(wallet.getCreatedAt(), result.getCreatedAt());
         assertEquals(wallet.getUpdatedAt(), result.getUpdatedAt());
 
-        assertNull(result.getUserName());
-        assertNull(result.getUserRole());
-
         verify(authorizationService).requireAdminWalletViewer(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
         verifyNoInteractions(walletTransactionRepository);
@@ -221,10 +227,11 @@ class WalletServiceImplTest {
         Page<WalletTransaction> transactionPage = new PageImpl<>(List.of(transaction), pageable, 1);
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
-        when(walletTransactionRepository.findByWalletId(walletId, pageable)).thenReturn(transactionPage);
+        when(walletTransactionRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(transactionPage);
 
         Page<WalletTransactionResponse> result = walletService.getMyTransactions(
                 requester(userId, UserRole.BURUH),
+                new WalletTransactionFilter(TransactionType.CREDIT, null, null),
                 pageable
         );
 
@@ -245,7 +252,7 @@ class WalletServiceImplTest {
 
         verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
-        verify(walletTransactionRepository).findByWalletId(walletId, pageable);
+        verify(walletTransactionRepository).findAll(any(Specification.class), eq(pageable));
     }
 
     @Test
@@ -258,10 +265,11 @@ class WalletServiceImplTest {
         Page<WalletTransaction> emptyPage = Page.empty(pageable);
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
-        when(walletTransactionRepository.findByWalletId(walletId, pageable)).thenReturn(emptyPage);
+        when(walletTransactionRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(emptyPage);
 
         Page<WalletTransactionResponse> result = walletService.getMyTransactions(
                 requester(userId, UserRole.BURUH),
+                new WalletTransactionFilter(null, null, null),
                 pageable
         );
 
@@ -271,7 +279,124 @@ class WalletServiceImplTest {
 
         verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
         verify(walletRepository).findByUserId(userId);
-        verify(walletTransactionRepository).findByWalletId(walletId, pageable);
+        verify(walletTransactionRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTransactionsShouldBuildSpecificationWithAllFilters() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Wallet wallet = createWallet(walletId, userId);
+        Pageable pageable = PageRequest.of(0, 20);
+        WalletTransactionFilter filter = new WalletTransactionFilter(
+                TransactionType.DEBIT,
+                OffsetDateTime.of(2026, 5, 1, 0, 0, 0, 0, ZoneOffset.UTC),
+                OffsetDateTime.of(2026, 5, 21, 0, 0, 0, 0, ZoneOffset.UTC)
+        );
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
+        when(walletTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        walletService.getMyTransactions(requester(userId, UserRole.BURUH), filter, pageable);
+
+        ArgumentCaptor<Specification<WalletTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(walletTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<WalletTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.greaterThanOrEqualTo(any(Expression.class), any(OffsetDateTime.class))).thenReturn(predicate);
+        when(cb.lessThan(any(Expression.class), any(OffsetDateTime.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertNotNull(result);
+        verify(cb, times(2)).equal(any(Expression.class), any(Object.class));
+        verify(cb).greaterThanOrEqualTo(any(Expression.class), eq(filter.dateFrom()));
+        verify(cb).lessThan(any(Expression.class), eq(filter.dateTo()));
+        verify(cb).and(any(Predicate[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTransactionsShouldBuildSpecificationWithoutOptionalFilters() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Wallet wallet = createWallet(walletId, userId);
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
+        when(walletTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        walletService.getMyTransactions(requester(userId, UserRole.BURUH), null, pageable);
+
+        ArgumentCaptor<Specification<WalletTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(walletTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<WalletTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertNotNull(result);
+        verify(cb).equal(any(Expression.class), eq(walletId));
+        verify(cb, never()).greaterThanOrEqualTo(any(Expression.class), any(OffsetDateTime.class));
+        verify(cb, never()).lessThan(any(Expression.class), any(OffsetDateTime.class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTransactionsShouldBuildSpecificationWithEmptyFilter() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Wallet wallet = createWallet(walletId, userId);
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(walletRepository.findByUserId(userId)).thenReturn(Optional.of(wallet));
+        when(walletTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        walletService.getMyTransactions(
+                requester(userId, UserRole.BURUH),
+                new WalletTransactionFilter(null, null, null),
+                pageable
+        );
+
+        ArgumentCaptor<Specification<WalletTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(walletTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<WalletTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertNotNull(result);
+        verify(cb).equal(any(Expression.class), eq(walletId));
+        verify(cb, never()).greaterThanOrEqualTo(any(Expression.class), any(OffsetDateTime.class));
+        verify(cb, never()).lessThan(any(Expression.class), any(OffsetDateTime.class));
     }
 
     @Test
@@ -283,7 +408,11 @@ class WalletServiceImplTest {
 
         assertThrows(
                 WalletNotFoundException.class,
-                () -> walletService.getMyTransactions(requester(userId, UserRole.BURUH), pageable)
+                () -> walletService.getMyTransactions(
+                        requester(userId, UserRole.BURUH),
+                        new WalletTransactionFilter(null, null, null),
+                        pageable
+                )
         );
 
         verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
@@ -299,7 +428,14 @@ class WalletServiceImplTest {
                 .when(authorizationService)
                 .requireOwnWalletAccess(requester);
 
-        assertThrows(ForbiddenException.class, () -> walletService.getMyTransactions(requester, pageable));
+        assertThrows(
+                ForbiddenException.class,
+                () -> walletService.getMyTransactions(
+                        requester,
+                        new WalletTransactionFilter(null, null, null),
+                        pageable
+                )
+        );
 
         verify(authorizationService).requireOwnWalletAccess(requester);
         verifyNoInteractions(walletRepository);

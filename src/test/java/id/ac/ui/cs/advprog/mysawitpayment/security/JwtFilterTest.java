@@ -39,6 +39,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -58,6 +61,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Invalid token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -104,6 +110,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -169,6 +178,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }

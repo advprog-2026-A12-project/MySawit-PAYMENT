@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
@@ -10,6 +11,9 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminReferenceResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
@@ -18,10 +22,13 @@ import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,6 +37,7 @@ import java.util.UUID;
 public class TopUpServiceImpl implements TopUpService {
 
     private static final BigDecimal EXCHANGE_RATE = BigDecimal.valueOf(10_000);
+    private static final BigDecimal MAX_TOP_UP_AMOUNT = new BigDecimal("100000.00");
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -83,23 +91,27 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     @Override
-    public Page<HistoryTopUpResponse> getMyTopUps(AuthenticatedUser requester, Pageable pageable) {
+    public Page<HistoryTopUpResponse> getMyTopUps(
+            AuthenticatedUser requester,
+            TopUpFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requireAdmin(requester);
 
-        return paymentTransactionRepository.findByAdminId(requester.id(), pageable)
+        return paymentTransactionRepository.findAll(topUpSpec(requester.id(), filter), pageable)
                 .map(this::mapToHistoryTopUpResponse);
     }
 
     @Override
     public void handleXenditCallback(String callbackToken, XenditCallbackRequest request) {
         if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
-            throw new RuntimeException("Invalid Xendit callback token");
+            throw new ForbiddenException("Invalid Xendit callback token");
         }
 
         UUID transactionId = UUID.fromString(request.getExternalId());
 
         PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+                .orElseThrow(PaymentTransactionNotFoundException::new);
 
         if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
             return;
@@ -137,7 +149,7 @@ public class TopUpServiceImpl implements TopUpService {
     @Override
     public TopUpDetailResponse getTopUpDetail(UUID id, AuthenticatedUser requester) {
         PaymentTransaction paymentTransaction = paymentTransactionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Top-up transaction not found"));
+                .orElseThrow(() -> new PaymentTransactionNotFoundException("Top-up transaction not found"));
 
         authorizationService.requireTopUpOwner(requester, paymentTransaction.getAdminId());
 
@@ -146,12 +158,30 @@ public class TopUpServiceImpl implements TopUpService {
 
     private void validateCreateTopUpRequest(CreateTopUpRequest request) {
         if (request == null || request.getAmountSawitDollar() == null) {
-            throw new IllegalArgumentException("Amount SawitDollar is required");
+            throw new InvalidAmountException("Amount SawitDollar is required");
         }
 
         if (request.getAmountSawitDollar().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount SawitDollar must be greater than 0");
+            throw new InvalidAmountException("Amount SawitDollar must be greater than 0");
         }
+
+        if (request.getAmountSawitDollar().compareTo(MAX_TOP_UP_AMOUNT) > 0) {
+            throw new InvalidAmountException("Amount SawitDollar must be at most 100000");
+        }
+    }
+
+    private Specification<PaymentTransaction> topUpSpec(UUID adminId, TopUpFilter filter) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("adminId"), adminId));
+
+            if (filter != null && filter.status() != null) {
+                predicates.add(cb.equal(root.get("status"), filter.status()));
+            }
+
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     private HistoryTopUpResponse mapToHistoryTopUpResponse(PaymentTransaction paymentTransaction) {
@@ -171,7 +201,6 @@ public class TopUpServiceImpl implements TopUpService {
                 .id(paymentTransaction.getId())
                 .admin(AdminReferenceResponse.builder()
                         .id(paymentTransaction.getAdminId())
-                        .name(null) // TODO: isi nanti kalau sudah ada source nama admin
                         .build())
                 .amountSawitDollar(paymentTransaction.getAmountSawitDollar())
                 .amountIdr(paymentTransaction.getAmountIdr())

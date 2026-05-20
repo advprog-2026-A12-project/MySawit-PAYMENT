@@ -13,12 +13,9 @@ class PayrollApprovedByResponseTest {
         PayrollApprovedByResponse response = new PayrollApprovedByResponse();
 
         UUID id = UUID.randomUUID();
-        String name = "Admin Utama";
 
         response.setId(id);
-        response.setName(name);
 
         assertEquals(id, response.getId());
-        assertEquals(name, response.getName());
     }
 }

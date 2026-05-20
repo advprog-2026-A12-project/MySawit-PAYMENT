@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.WalletCreationRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.WalletTransactionFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
@@ -19,9 +20,13 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -45,10 +50,15 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public Page<WalletTransactionResponse> getMyTransactions(AuthenticatedUser requester, Pageable pageable) {
+    public Page<WalletTransactionResponse> getMyTransactions(
+            AuthenticatedUser requester,
+            WalletTransactionFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requireOwnWalletAccess(requester);
         UUID walletId = findWalletOrThrow(requester.id()).getId();
-        Page<WalletTransaction> transactionPage = walletTransactionRepository.findByWalletId(walletId, pageable);
+        Page<WalletTransaction> transactionPage =
+                walletTransactionRepository.findAll(walletTransactionSpec(walletId, filter), pageable);
         return transactionPage.map(this::mapToWalletTransactionResponse);
     }
 
@@ -152,6 +162,44 @@ public class WalletServiceImpl implements WalletService {
                 .orElseThrow(WalletNotFoundException::new);
     }
 
+    private Specification<WalletTransaction> walletTransactionSpec(
+            UUID walletId,
+            WalletTransactionFilter filter
+    ) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("walletId"), walletId));
+
+            if (filter != null && filter.transactionType() != null) {
+                predicates.add(cb.equal(root.get("transactionType"), filter.transactionType()));
+            }
+
+            addDateRangePredicates(predicates, cb, root.get("createdAt"), filter);
+
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    }
+
+    private void addDateRangePredicates(
+            List<jakarta.persistence.criteria.Predicate> predicates,
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            jakarta.persistence.criteria.Path<OffsetDateTime> path,
+            WalletTransactionFilter filter
+    ) {
+        if (filter == null) {
+            return;
+        }
+
+        if (filter.dateFrom() != null) {
+            predicates.add(cb.greaterThanOrEqualTo(path, filter.dateFrom()));
+        }
+
+        if (filter.dateTo() != null) {
+            predicates.add(cb.lessThan(path, filter.dateTo()));
+        }
+    }
+
     private WalletResponse mapToMyWalletResponse(Wallet wallet) {
         WalletResponse response = new WalletResponse();
         response.setId(wallet.getId());
@@ -171,9 +219,6 @@ public class WalletServiceImpl implements WalletService {
         response.setCreatedAt(wallet.getCreatedAt());
         response.setCurrency("SawitDollar");
         response.setUpdatedAt(wallet.getUpdatedAt());
-        // TODO: ambil field null ini dari auth
-        response.setUserName(null);
-        response.setUserRole(null);
         return response;
     }
 

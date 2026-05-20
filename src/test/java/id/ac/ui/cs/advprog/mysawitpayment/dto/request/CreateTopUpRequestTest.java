@@ -68,6 +68,18 @@ class CreateTopUpRequestTest {
         assertThat(violations).isNotEmpty();
     }
 
+    @Test
+    void shouldFailWhenAmountExceedsMaximum() {
+        CreateTopUpRequest request = new CreateTopUpRequest();
+
+        setField(request, "amountSawitDollar", new BigDecimal("100000.01"));
+
+        Set<ConstraintViolation<CreateTopUpRequest>> violations =
+                validator.validate(request);
+
+        assertThat(violations).isNotEmpty();
+    }
+
     private void setField(Object target, String fieldName, Object value) {
         try {
             var field = target.getClass().getDeclaredField(fieldName);

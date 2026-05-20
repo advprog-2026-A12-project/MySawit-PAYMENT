@@ -2,19 +2,20 @@ package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.ApiResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,12 +34,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TopUpController {
 
+    private static final Map<String, String> TOP_UP_SORT_FIELDS = Map.of(
+            "createdAt", "createdAt",
+            "amountSawitDollar", "amountSawitDollar"
+    );
+
     private final TopUpService topUpService;
 
     @PostMapping
     public ApiResponse<CreateTopUpResponse> createTopUp(
             HttpServletRequest request,
-            @RequestBody CreateTopUpRequest requestBody
+            @Valid @RequestBody CreateTopUpRequest requestBody
     ) {
         CreateTopUpResponse response = topUpService.createTopUp(
                 requestBody,
@@ -57,16 +63,21 @@ public class TopUpController {
     public ApiResponse<PageResponse<HistoryTopUpResponse>> getMyTopUps(
             HttpServletRequest request,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) PaymentTransactionStatus status,
+            @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        Pageable pageable = PageRequest.of(
+        Pageable pageable = PageableRequest.of(
                 page,
                 size,
-                Sort.by("createdAt").descending()
+                sort,
+                TOP_UP_SORT_FIELDS,
+                "createdAt,desc"
         );
 
         Page<HistoryTopUpResponse> resultPage = topUpService.getMyTopUps(
                 AuthenticatedUser.from(request),
+                new TopUpFilter(status),
                 pageable
         );
 

@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.WalletTransactionFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +19,11 @@ public interface WalletService {
 
     WalletResponse getMyWallet(AuthenticatedUser requester);
 
-    Page<WalletTransactionResponse> getMyTransactions(AuthenticatedUser requester, Pageable pageable);
+    Page<WalletTransactionResponse> getMyTransactions(
+            AuthenticatedUser requester,
+            WalletTransactionFilter filter,
+            Pageable pageable
+    );
 
     WalletMutationResult creditWallet(
             UUID userId,

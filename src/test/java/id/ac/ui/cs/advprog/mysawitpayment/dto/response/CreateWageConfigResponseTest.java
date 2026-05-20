@@ -28,7 +28,6 @@ class CreateWageConfigResponseTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin")
                         .build())
                 .effectiveFrom(OffsetDateTime.now())
                 .createdAt(OffsetDateTime.now())
@@ -64,7 +63,6 @@ class CreateWageConfigResponseTest {
                         .build())
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
                 .effectiveFrom(OffsetDateTime.now())
                 .createdAt(OffsetDateTime.now())
@@ -79,6 +77,6 @@ class CreateWageConfigResponseTest {
         // nested updatedBy
         assertThat(json).contains("\"updatedBy\"");
         assertThat(json).contains(adminId.toString());
-        assertThat(json).contains("\"name\":\"Admin\"");
+        assertThat(json).doesNotContain("\"name\":");
     }
 }

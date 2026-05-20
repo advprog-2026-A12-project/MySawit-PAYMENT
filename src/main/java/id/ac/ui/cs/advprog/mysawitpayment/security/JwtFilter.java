@@ -54,16 +54,14 @@ public class JwtFilter implements Filter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.setStatus(401);
-            response.getWriter().write("{\"status\":\"error\",\"message\":\"Missing token\"}");
+            ErrorResponseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing token");
             return;
         }
 
         String token = authHeader.substring(7);
 
         if (!jwtUtil.isValid(token)) {
-            response.setStatus(401);
-            response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid token\"}");
+            ErrorResponseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
             return;
         }
 

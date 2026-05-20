@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.PayrollCreationRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.PayrollFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
@@ -20,6 +21,12 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PayrollRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -30,6 +37,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -50,6 +58,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.times;
 
 @ExtendWith(MockitoExtension.class)
 class PayrollServiceImplTest {
@@ -163,10 +173,10 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals("ACCEPTED", result.getStatus());
         assertEquals(adminId, result.getApprovedBy().getId());
-        assertEquals("", result.getApprovedBy().getName());
         assertNotNull(result.getApprovedAt());
 
         assertEquals(new BigDecimal("50000.00"), result.getDisbursement().getAdminWallet().getBalanceBefore());
@@ -240,11 +250,11 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals("REJECTED", result.getStatus());
         assertEquals(reason, result.getRejectionReason());
         assertEquals(adminId, result.getApprovedBy().getId());
-        assertEquals("", result.getApprovedBy().getName());
         assertNotNull(result.getApprovedAt());
 
         ArgumentCaptor<Payroll> payrollCaptor = ArgumentCaptor.forClass(Payroll.class);
@@ -308,9 +318,18 @@ class PayrollServiceImplTest {
         Pageable pageable = PageRequest.of(0, 20);
         Page<Payroll> payrollPage = new PageImpl<>(List.of(payroll), pageable, 1);
 
-        when(payrollRepository.findAll(pageable)).thenReturn(payrollPage);
+        PayrollFilter filter = new PayrollFilter(
+                userId,
+                PayrollStatus.PENDING,
+                UserRole.BURUH,
+                ReferenceType.HARVEST,
+                null,
+                null
+        );
+        when(payrollRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(payrollPage);
 
-        Page<AdminPayrollResponse> result = payrollService.getAllPayrolls(adminUser(UUID.randomUUID()), pageable);
+        Page<AdminPayrollResponse> result =
+                payrollService.getAllPayrolls(adminUser(UUID.randomUUID()), filter, pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -319,6 +338,7 @@ class PayrollServiceImplTest {
         AdminPayrollResponse response = result.getContent().get(0);
         assertEquals(payrollId, response.getId());
         assertEquals(userId, response.getUser().getId());
+        assertEquals("BURUH", response.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), response.getAmount());
         assertEquals(new BigDecimal("250.50"), response.getKilogram());
         assertEquals(new BigDecimal("2.50"), response.getRatePerKg());
@@ -329,7 +349,7 @@ class PayrollServiceImplTest {
         assertEquals("Upah panen", response.getDescription());
         assertEquals(payroll.getCreatedAt(), response.getCreatedAt());
 
-        verify(payrollRepository).findAll(pageable);
+        verify(payrollRepository).findAll(any(Specification.class), eq(pageable));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
     }
@@ -343,9 +363,10 @@ class PayrollServiceImplTest {
         Pageable pageable = PageRequest.of(0, 20);
         Page<Payroll> payrollPage = new PageImpl<>(List.of(payroll), pageable, 1);
 
-        when(payrollRepository.findByUserId(userId, pageable)).thenReturn(payrollPage);
+        PayrollFilter filter = new PayrollFilter(null, PayrollStatus.PENDING, null, null, null, null);
+        when(payrollRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(payrollPage);
 
-        Page<PayrollResponse> result = payrollService.getMyPayrolls(payrollUser(userId), pageable);
+        Page<PayrollResponse> result = payrollService.getMyPayrolls(payrollUser(userId), filter, pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
@@ -363,9 +384,96 @@ class PayrollServiceImplTest {
         assertEquals(payroll.getApprovedAt(), response.getApprovedAt());
         assertEquals(payroll.getCreatedAt(), response.getCreatedAt());
 
-        verify(payrollRepository).findByUserId(userId, pageable);
+        verify(payrollRepository).findAll(any(Specification.class), eq(pageable));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void getMyPayrollsShouldAllowNullFilter() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(payrollRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        Page<PayrollResponse> result = payrollService.getMyPayrolls(payrollUser(userId), null, pageable);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(payrollRepository).findAll(any(Specification.class), eq(pageable));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getAllPayrollsShouldBuildSpecificationWithAllFilters() {
+        UUID userId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 20);
+        PayrollFilter filter = new PayrollFilter(
+                userId,
+                PayrollStatus.ACCEPTED,
+                UserRole.MANDOR,
+                ReferenceType.DELIVERY,
+                OffsetDateTime.of(2026, 5, 1, 0, 0, 0, 0, ZoneOffset.UTC),
+                OffsetDateTime.of(2026, 5, 21, 0, 0, 0, 0, ZoneOffset.UTC)
+        );
+
+        when(payrollRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        payrollService.getAllPayrolls(adminUser(UUID.randomUUID()), filter, pageable);
+
+        ArgumentCaptor<Specification<Payroll>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(payrollRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<Payroll> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.greaterThanOrEqualTo(any(Expression.class), any(OffsetDateTime.class))).thenReturn(predicate);
+        when(cb.lessThan(any(Expression.class), any(OffsetDateTime.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertNotNull(result);
+        verify(cb, times(4)).equal(any(Expression.class), any(Object.class));
+        verify(cb).greaterThanOrEqualTo(any(Expression.class), eq(filter.dateFrom()));
+        verify(cb).lessThan(any(Expression.class), eq(filter.dateTo()));
+        verify(cb).and(any(Predicate[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getAllPayrollsShouldBuildSpecificationWithoutFilters() {
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(payrollRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        payrollService.getAllPayrolls(adminUser(UUID.randomUUID()), null, pageable);
+
+        ArgumentCaptor<Specification<Payroll>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(payrollRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<Payroll> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertNotNull(result);
+        verify(cb, never()).equal(any(Expression.class), any(Object.class));
+        verify(cb, never()).greaterThanOrEqualTo(any(Expression.class), any(OffsetDateTime.class));
+        verify(cb, never()).lessThan(any(Expression.class), any(OffsetDateTime.class));
+        verify(cb).and(any(Predicate[].class));
     }
 
     @Test
@@ -387,6 +495,7 @@ class PayrollServiceImplTest {
         assertNotNull(result);
         assertEquals(payrollId, result.getId());
         assertEquals(userId, result.getUser().getId());
+        assertEquals("BURUH", result.getUser().getRole());
         assertEquals(new BigDecimal("562.61"), result.getAmount());
         assertEquals(new BigDecimal("250.50"), result.getKilogram());
         assertEquals(new BigDecimal("2.50"), result.getRatePerKg());
@@ -449,7 +558,11 @@ class PayrollServiceImplTest {
         );
 
         assertThrows(ForbiddenException.class, () ->
-                securedService.getMyPayrolls(adminUser(UUID.randomUUID()), PageRequest.of(0, 20))
+                securedService.getMyPayrolls(
+                        adminUser(UUID.randomUUID()),
+                        new PayrollFilter(null, null, null, null, null, null),
+                        PageRequest.of(0, 20)
+                )
         );
 
         verifyNoInteractions(payrollRepository);
