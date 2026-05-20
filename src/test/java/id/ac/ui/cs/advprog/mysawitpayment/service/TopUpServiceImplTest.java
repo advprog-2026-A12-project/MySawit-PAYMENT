@@ -10,6 +10,8 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
@@ -153,7 +155,7 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
 
         assertThatThrownBy(() -> service.createTopUp(null, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -166,7 +168,7 @@ class TopUpServiceImplTest {
         CreateTopUpRequest request = new CreateTopUpRequest();
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -180,7 +182,7 @@ class TopUpServiceImplTest {
         setField(request, "amountSawitDollar", BigDecimal.ZERO);
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
         verify(paymentTransactionRepository, never()).save(any());
@@ -194,8 +196,22 @@ class TopUpServiceImplTest {
         setField(request, "amountSawitDollar", new BigDecimal("-1"));
 
         assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
+
+        verify(paymentTransactionRepository, never()).save(any());
+        verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
+    }
+
+    @Test
+    void createTopUpShouldThrowWhenAmountExceedsMaximum() {
+        UUID adminId = UUID.randomUUID();
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("100000.01"));
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+                .isInstanceOf(InvalidAmountException.class)
+                .hasMessage("Amount SawitDollar must be at most 100000");
 
         verify(paymentTransactionRepository, never()).save(any());
         verify(paymentGatewayClient, never()).createTopupInvoice(any(), any(), any());
@@ -305,7 +321,7 @@ class TopUpServiceImplTest {
         XenditCallbackRequest request = new XenditCallbackRequest();
 
         assertThatThrownBy(() -> service.handleXenditCallback(null, request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
         verify(paymentTransactionRepository, never()).findById(any());
@@ -316,7 +332,7 @@ class TopUpServiceImplTest {
         XenditCallbackRequest request = new XenditCallbackRequest();
 
         assertThatThrownBy(() -> service.handleXenditCallback("wrong-token", request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
         verify(paymentTransactionRepository, never()).findById(any());
@@ -331,7 +347,7 @@ class TopUpServiceImplTest {
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
-                .isInstanceOf(RuntimeException.class)
+                .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Payment transaction not found");
     }
 
@@ -574,7 +590,7 @@ class TopUpServiceImplTest {
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(adminId)))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Top-up transaction not found");
     }
 
