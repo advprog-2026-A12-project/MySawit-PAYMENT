@@ -1,0 +1,20 @@
+services:
+  app:
+    image: ${IMAGE:-mysawit-payment:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_NAME:-payment-app}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8002}:${CONTAINER_PORT:-8002}"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: ${SERVER_PORT:-8002}
+      DATABASE_URL: ${DATABASE_URL:-}
+      DATABASE_USERNAME: ${DATABASE_USERNAME:-}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY:-}
+      XENDIT_WEBHOOK_TOKEN: ${XENDIT_WEBHOOK_TOKEN:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-}
