@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
@@ -18,10 +19,13 @@ import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -83,10 +87,14 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     @Override
-    public Page<HistoryTopUpResponse> getMyTopUps(AuthenticatedUser requester, Pageable pageable) {
+    public Page<HistoryTopUpResponse> getMyTopUps(
+            AuthenticatedUser requester,
+            TopUpFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requireAdmin(requester);
 
-        return paymentTransactionRepository.findByAdminId(requester.id(), pageable)
+        return paymentTransactionRepository.findAll(topUpSpec(requester.id(), filter), pageable)
                 .map(this::mapToHistoryTopUpResponse);
     }
 
@@ -152,6 +160,20 @@ public class TopUpServiceImpl implements TopUpService {
         if (request.getAmountSawitDollar().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount SawitDollar must be greater than 0");
         }
+    }
+
+    private Specification<PaymentTransaction> topUpSpec(UUID adminId, TopUpFilter filter) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("adminId"), adminId));
+
+            if (filter != null && filter.status() != null) {
+                predicates.add(cb.equal(root.get("status"), filter.status()));
+            }
+
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     private HistoryTopUpResponse mapToHistoryTopUpResponse(PaymentTransaction paymentTransaction) {

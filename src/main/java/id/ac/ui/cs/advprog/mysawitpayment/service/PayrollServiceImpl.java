@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.internal.PayrollCreationRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.PayrollFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
@@ -28,11 +29,14 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -45,27 +49,35 @@ public class PayrollServiceImpl implements PayrollService {
     private final PaymentAuthorizationService authorizationService;
 
     @Override
-    public Page<AdminPayrollResponse> getAllPayrolls(AuthenticatedUser requester, Pageable pageable) {
+    public Page<AdminPayrollResponse> getAllPayrolls(
+            AuthenticatedUser requester,
+            PayrollFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requireAdmin(requester);
 
-        Page<Payroll> allPayrolls = getPayrollsInternal(null, pageable);
+        Page<Payroll> allPayrolls = payrollRepository.findAll(payrollSpec(filter), pageable);
         return allPayrolls.map(this::mapToAdminResponse);
     }
 
     @Override
-    public Page<PayrollResponse> getMyPayrolls(AuthenticatedUser requester, Pageable pageable) {
+    public Page<PayrollResponse> getMyPayrolls(
+            AuthenticatedUser requester,
+            PayrollFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requirePayrollRecipient(requester);
 
-        Page<Payroll> myPayrolls = getPayrollsInternal(requester.id(), pageable);
+        PayrollFilter ownerFilter = new PayrollFilter(
+                requester.id(),
+                filter == null ? null : filter.status(),
+                null,
+                null,
+                filter == null ? null : filter.dateFrom(),
+                filter == null ? null : filter.dateTo()
+        );
+        Page<Payroll> myPayrolls = payrollRepository.findAll(payrollSpec(ownerFilter), pageable);
         return myPayrolls.map(this::mapToResponse);
-    }
-
-    private Page<Payroll> getPayrollsInternal(UUID userId, Pageable pageable) {
-        if (userId != null) {
-            return payrollRepository.findByUserId(userId, pageable);
-        } else {
-            return payrollRepository.findAll(pageable);
-        }
     }
 
     @Override
@@ -227,6 +239,38 @@ public class PayrollServiceImpl implements PayrollService {
         return payrollRepository.findById(payrollId)
                 .orElseThrow(() ->
                         new PayrollNotFoundException("Payroll " + payrollId + " not found"));
+    }
+
+    private Specification<Payroll> payrollSpec(PayrollFilter filter) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (filter != null && filter.userId() != null) {
+                predicates.add(cb.equal(root.get("userId"), filter.userId()));
+            }
+
+            if (filter != null && filter.status() != null) {
+                predicates.add(cb.equal(root.get("status"), filter.status()));
+            }
+
+            if (filter != null && filter.userRole() != null) {
+                predicates.add(cb.equal(root.get("userRole"), filter.userRole()));
+            }
+
+            if (filter != null && filter.referenceType() != null) {
+                predicates.add(cb.equal(root.get("referenceType"), filter.referenceType()));
+            }
+
+            if (filter != null && filter.dateFrom() != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), filter.dateFrom()));
+            }
+
+            if (filter != null && filter.dateTo() != null) {
+                predicates.add(cb.lessThan(root.get("createdAt"), filter.dateTo()));
+            }
+
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     private void ensurePending(Payroll payroll, UUID payrollId) {
