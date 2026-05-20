@@ -4,6 +4,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
@@ -15,13 +16,21 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Path;
+import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -211,9 +220,10 @@ class TopUpServiceImplTest {
                 .build();
 
         Page<PaymentTransaction> page = new PageImpl<>(List.of(tx), pageable, 1);
-        when(paymentTransactionRepository.findByAdminId(adminId, pageable)).thenReturn(page);
+        TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.SUCCESS);
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
 
-        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), pageable);
+        Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), filter, pageable);
 
         assertThat(result.getContent()).hasSize(1);
         HistoryTopUpResponse item = result.getContent().get(0);
@@ -224,6 +234,70 @@ class TopUpServiceImplTest {
         assertThat(item.getStatus()).isEqualTo("SUCCESS");
         assertThat(item.getCreatedAt()).isEqualTo(tx.getCreatedAt());
         assertThat(item.getUpdatedAt()).isEqualTo(tx.getUpdatedAt());
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTopUpsShouldBuildSpecificationWithStatusFilter() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.EXPIRED);
+
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        service.getMyTopUps(adminUser(adminId), filter, pageable);
+
+        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<PaymentTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertThat(result).isNotNull();
+        verify(cb, times(2)).equal(any(Expression.class), any(Object.class));
+        verify(cb).and(any(Predicate[].class));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void getMyTopUpsShouldBuildSpecificationWithoutStatusFilter() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(Page.empty(pageable));
+
+        service.getMyTopUps(adminUser(adminId), null, pageable);
+
+        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
+        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
+
+        Root<PaymentTransaction> root = mock(Root.class);
+        CriteriaQuery<?> query = mock(CriteriaQuery.class);
+        CriteriaBuilder cb = mock(CriteriaBuilder.class);
+        Path path = mock(Path.class);
+        Predicate predicate = mock(Predicate.class);
+
+        when(root.get(any(String.class))).thenReturn(path);
+        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
+        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+
+        Predicate result = captor.getValue().toPredicate(root, query, cb);
+
+        assertThat(result).isNotNull();
+        verify(cb).equal(any(Expression.class), eq(adminId));
+        verify(cb, times(1)).equal(any(Expression.class), any(Object.class));
+        verify(cb).and(any(Predicate[].class));
     }
 
     @Test
