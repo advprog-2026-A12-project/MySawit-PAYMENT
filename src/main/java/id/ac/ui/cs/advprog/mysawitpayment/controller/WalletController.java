@@ -33,8 +33,8 @@ import java.util.UUID;
 public class WalletController {
 
     private static final Map<String, String> TRANSACTION_SORT_FIELDS = Map.of(
-            "createdAt", "createdAt",
-            "amount", "amount"
+            ControllerConstants.SORT_CREATED_AT, ControllerConstants.SORT_CREATED_AT,
+            ControllerConstants.SORT_AMOUNT, ControllerConstants.SORT_AMOUNT
     );
 
     private final WalletService walletService;
@@ -48,7 +48,7 @@ public class WalletController {
         WalletResponse response = walletService.getMyWallet(requester);
 
         return  ApiResponse.<WalletResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Wallet retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -63,7 +63,7 @@ public class WalletController {
             @RequestParam(required = false) TransactionType transactionType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
-            @RequestParam(defaultValue = "createdAt,desc") String sort
+            @RequestParam(defaultValue = ControllerConstants.DEFAULT_CREATED_AT_DESC) String sort
     ) {
         AuthenticatedUser requester = AuthenticatedUser.from(request);
         PageableRequest.validateDateRange(dateFrom, dateTo);
@@ -73,7 +73,7 @@ public class WalletController {
                 size,
                 sort,
                 TRANSACTION_SORT_FIELDS,
-                "createdAt,desc"
+                ControllerConstants.DEFAULT_CREATED_AT_DESC
         );
 
         WalletTransactionFilter filter = new WalletTransactionFilter(
@@ -97,7 +97,7 @@ public class WalletController {
                         .build();
 
         return ApiResponse.<PageResponse<WalletTransactionResponse>>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Wallet transactions retrieved successfully")
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -114,7 +114,7 @@ public class WalletController {
         AdminWalletResponse response = walletService.getWalletByUserId(requester, userId);
 
         return  ApiResponse.<AdminWalletResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Wallet retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))

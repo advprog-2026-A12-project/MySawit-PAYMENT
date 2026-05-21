@@ -186,7 +186,9 @@ class TopUpServiceImplTest {
                 eq(new BigDecimal("100000.00"))
         )).thenThrow(new IllegalStateException("Gateway timeout"));
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+        AuthenticatedUser admin = adminUser(adminId);
+
+        assertThatThrownBy(() -> service.createTopUp(request, admin))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Gateway timeout");
 
@@ -198,8 +200,9 @@ class TopUpServiceImplTest {
     @Test
     void createTopUpShouldThrowWhenRequestIsNull() {
         UUID adminId = UUID.randomUUID();
+        AuthenticatedUser admin = adminUser(adminId);
 
-        assertThatThrownBy(() -> service.createTopUp(null, adminUser(adminId)))
+        assertThatThrownBy(() -> service.createTopUp(null, admin))
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
@@ -211,8 +214,9 @@ class TopUpServiceImplTest {
     void createTopUpShouldThrowWhenAmountIsNull() {
         UUID adminId = UUID.randomUUID();
         CreateTopUpRequest request = new CreateTopUpRequest();
+        AuthenticatedUser admin = adminUser(adminId);
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+        assertThatThrownBy(() -> service.createTopUp(request, admin))
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar is required");
 
@@ -225,8 +229,9 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
         CreateTopUpRequest request = new CreateTopUpRequest();
         setField(request, "amountSawitDollar", BigDecimal.ZERO);
+        AuthenticatedUser admin = adminUser(adminId);
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+        assertThatThrownBy(() -> service.createTopUp(request, admin))
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
@@ -239,8 +244,9 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
         CreateTopUpRequest request = new CreateTopUpRequest();
         setField(request, "amountSawitDollar", new BigDecimal("-1"));
+        AuthenticatedUser admin = adminUser(adminId);
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+        assertThatThrownBy(() -> service.createTopUp(request, admin))
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be greater than 0");
 
@@ -253,8 +259,9 @@ class TopUpServiceImplTest {
         UUID adminId = UUID.randomUUID();
         CreateTopUpRequest request = new CreateTopUpRequest();
         setField(request, "amountSawitDollar", new BigDecimal("100000.01"));
+        AuthenticatedUser admin = adminUser(adminId);
 
-        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+        assertThatThrownBy(() -> service.createTopUp(request, admin))
                 .isInstanceOf(InvalidAmountException.class)
                 .hasMessage("Amount SawitDollar must be at most 100000");
 
@@ -438,6 +445,30 @@ class TopUpServiceImplTest {
     }
 
     @Test
+    void handleXenditCallbackShouldThrowWhenRequestIsNull() {
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("External id is required");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenExternalIdIsBlank() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-1");
+        request.setExternalId("   ");
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("External id is required");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
     void handleXenditCallbackShouldThrowWhenExternalIdIsInvalidUuid() {
         XenditCallbackRequest request = new XenditCallbackRequest();
         request.setId("inv-1");
@@ -463,6 +494,35 @@ class TopUpServiceImplTest {
         assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Unsupported Xendit callback status");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenStatusIsMissing() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-unknown");
+        request.setExternalId(UUID.randomUUID().toString());
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Status is required");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenStatusIsBlank() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-unknown");
+        request.setExternalId(UUID.randomUUID().toString());
+        request.setStatus("   ");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Status is required");
 
         verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
     }
@@ -730,6 +790,67 @@ class TopUpServiceImplTest {
     }
 
     @Test
+    void handleXenditCallbackShouldThrowWhenCallbackIdIsMissing() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("existing-ref")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+        request.setStatus("EXPIRED");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Xendit callback id is required");
+
+        verify(paymentTransactionRepository, never()).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenCallbackIdIsBlank() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("existing-ref")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("   ");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("EXPIRED");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Xendit callback id is required");
+
+        verify(paymentTransactionRepository, never()).save(transaction);
+    }
+
+    @Test
     void handleXenditCallbackShouldThrowWhenAmountDoesNotMatch() {
         UUID transactionId = UUID.randomUUID();
 
@@ -756,6 +877,38 @@ class TopUpServiceImplTest {
         assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Xendit callback amount does not match transaction amount");
+
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository, never()).save(transaction);
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenAmountIsMissing() {
+        UUID transactionId = UUID.randomUUID();
+
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-paid")
+                .status(PaymentTransactionStatus.PENDING)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-paid");
+        request.setExternalId(transactionId.toString());
+        request.setStatus("PAID");
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Amount is required");
 
         assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
         verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
@@ -809,7 +962,9 @@ class TopUpServiceImplTest {
 
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(adminId)))
+        AuthenticatedUser admin = adminUser(adminId);
+
+        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, admin))
                 .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Top-up transaction not found");
     }
@@ -848,7 +1003,9 @@ class TopUpServiceImplTest {
 
         when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
 
-        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, adminUser(otherAdminId)))
+        AuthenticatedUser otherAdmin = adminUser(otherAdminId);
+
+        assertThatThrownBy(() -> service.getTopUpDetail(transactionId, otherAdmin))
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Forbidden");
     }

@@ -27,7 +27,7 @@ class JwtFilterTest {
     @BeforeEach
     void setUp() {
         jwtUtil = mock(JwtUtil.class);
-        jwtFilter = new JwtFilter(jwtUtil);
+        jwtFilter = new JwtFilter(jwtUtil, "/api/v1/internal");
     }
 
     @Test
@@ -164,6 +164,65 @@ class JwtFilterTest {
     }
 
     @Test
+    void testInvalidTokenWhenClaimsAreNull() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer nullclaims");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        when(jwtUtil.isValid("nullclaims")).thenReturn(true);
+        when(jwtUtil.extractClaims("nullclaims")).thenReturn(null);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid token"));
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testInvalidTokenWhenSubjectClaimIsMissing() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer nosubject");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.isValid("nosubject")).thenReturn(true);
+        when(jwtUtil.extractClaims("nosubject")).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(null);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid token"));
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testInvalidTokenWhenRoleClaimIsMissing() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer norole");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.isValid("norole")).thenReturn(true);
+        when(jwtUtil.extractClaims("norole")).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(UUID.randomUUID().toString());
+        when(claims.get("role", String.class)).thenReturn(null);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid token"));
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
     void testShouldBypassJwtValidationForTopupCallback() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRequestURI("/api/v1/topup/callback");
@@ -229,5 +288,37 @@ class JwtFilterTest {
         assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testShouldBypassJwtValidationForConfiguredInternalEndpoint() throws Exception {
+        JwtFilter customFilter = new JwtFilter(jwtUtil, "custom/internal");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/custom/internal/wallets");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        customFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
+    }
+
+    @Test
+    void testShouldBypassJwtValidationForActuatorEndpoint() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/actuator/health");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        jwtFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
     }
 }

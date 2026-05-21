@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -31,6 +32,11 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiResponse<Object>> handleNotFound(RuntimeException exception) {
         return error(HttpStatus.NOT_FOUND, exception.getMessage(), null);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Object>> handleNoResourceFound(NoResourceFoundException exception) {
+        return error(HttpStatus.NOT_FOUND, "Resource not found", null);
     }
 
     @ExceptionHandler({

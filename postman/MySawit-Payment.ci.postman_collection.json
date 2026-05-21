@@ -1,0 +1,3678 @@
+{
+  "info": {
+    "_postman_id": "e8370e40-8d47-456a-a7c5-0c1fce125867",
+    "name": "MySawit Payment API - CI Functional Regression",
+    "description": "",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 - Setup / Preconditions",
+      "description": "Creates required wallets and active wage config. Requires seeded DB or an admin wallet with sufficient balance before accepting payroll.",
+      "item": [
+        {
+          "name": "Create admin wallet via internal API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{adminId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.walletId !== undefined && jsonData.data && jsonData.data.walletId !== null) {",
+                  "              pm.environment.set(\"adminWalletId\", jsonData.data && jsonData.data.walletId);",
+                  "              console.log(\"Saved adminWalletId =\", jsonData.data && jsonData.data.walletId);",
+                  "            }",
+                  "",
+                  "pm.test(\"Idempotency flag exists\", () => pm.expect(jsonData.data).to.have.property(\"alreadyProcessed\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create buruh wallet via internal API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.walletId !== undefined && jsonData.data && jsonData.data.walletId !== null) {",
+                  "              pm.environment.set(\"buruhWalletId\", jsonData.data && jsonData.data.walletId);",
+                  "              console.log(\"Saved buruhWalletId =\", jsonData.data && jsonData.data.walletId);",
+                  "            }",
+                  "",
+                  "pm.test(\"Idempotency flag exists\", () => pm.expect(jsonData.data).to.have.property(\"alreadyProcessed\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create/update active wage config",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"upahBuruhPerKg\": 3.0,\n  \"upahSupirPerKg\": 2.0,\n  \"upahMandorPerKg\": 1.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Wage config updated successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Wage config updated successfully\");",
+                  "        });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.id !== undefined && jsonData.data && jsonData.data.id !== null) {",
+                  "              pm.environment.set(\"wageConfigId\", jsonData.data && jsonData.data.id);",
+                  "              console.log(\"Saved wageConfigId =\", jsonData.data && jsonData.data.id);",
+                  "            }",
+                  "",
+                  "pm.test(\"Wage config values are positive\", () => { pm.expect(jsonData.data.upahBuruhPerKg).to.be.above(0); pm.expect(jsonData.data.isActive).to.eql(true); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get active wage config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs",
+                "active"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Active wage config retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Active wage config retrieved successfully\");",
+                  "    });",
+                  "",
+                  "        if (jsonData.data && jsonData.data.id !== undefined && jsonData.data && jsonData.data.id !== null) {",
+                  "          pm.environment.set(\"activeWageConfigId\", jsonData.data && jsonData.data.id);",
+                  "          console.log(\"Saved activeWageConfigId =\", jsonData.data && jsonData.data.id);",
+                  "        }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 - Wallet",
+      "item": [
+        {
+          "name": "Admin get own wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Wallet retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Wallet retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Wallet belongs to admin\", () => pm.expect(jsonData.data.userId).to.eql(pm.environment.get(\"adminId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buruh get own wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Wallet retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Wallet retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Wallet belongs to buruh\", () => pm.expect(jsonData.data.userId).to.eql(pm.environment.get(\"buruhId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buruh get own wallet transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me/transactions?page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me",
+                "transactions?page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Wallet transactions retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Wallet transactions retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Paginated response\", () => { pm.expect(jsonData.data).to.have.property(\"content\"); pm.expect(jsonData.data.content).to.be.an(\"array\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buruh get CREDIT wallet transactions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me/transactions?transactionType=CREDIT&page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me",
+                "transactions?transactionType=CREDIT&page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Wallet transactions retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Wallet transactions retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin get buruh wallet by userId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/{{buruhId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "{{buruhId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Wallet retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Wallet retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Wallet belongs to buruh\", () => pm.expect(jsonData.data.userId).to.eql(pm.environment.get(\"buruhId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh forbidden to get admin wallet by userId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/{{adminId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "{{adminId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Missing JWT on wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [401]\", function () {",
+                  "  pm.expect([401]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Invalid JWT on wallet",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer invalid.jwt.token",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wallets/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallets",
+                "me"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [401]\", function () {",
+                  "  pm.expect([401]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Payroll Functional Flow",
+      "item": [
+        {
+          "name": "Create payroll for accept via internal API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{acceptReferenceId}}\",\n  \"kilogram\": 100.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"acceptReferenceId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.payrollId !== undefined && jsonData.data && jsonData.data.payrollId !== null) {",
+                  "              pm.environment.set(\"acceptPayrollId\", jsonData.data && jsonData.data.payrollId);",
+                  "              console.log(\"Saved acceptPayrollId =\", jsonData.data && jsonData.data.payrollId);",
+                  "            }",
+                  "",
+                  "pm.test(\"Payroll is newly processed\", () => pm.expect(jsonData.data.alreadyProcessed).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate same payroll event is idempotent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{acceptReferenceId}}\",\n  \"kilogram\": 100.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.payrollId !== undefined && jsonData.data && jsonData.data.payrollId !== null) {",
+                  "              pm.environment.set(\"acceptPayrollIdDuplicate\", jsonData.data && jsonData.data.payrollId);",
+                  "              console.log(\"Saved acceptPayrollIdDuplicate =\", jsonData.data && jsonData.data.payrollId);",
+                  "            }",
+                  "",
+                  "pm.test(\"Duplicate returns alreadyProcessed true\", () => pm.expect(jsonData.data.alreadyProcessed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin get payroll detail before accept",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{acceptPayrollId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{acceptPayrollId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Payroll detail retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Payroll detail retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Payroll is PENDING\", () => pm.expect(jsonData.data.status).to.eql(\"PENDING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin accept payroll",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{acceptPayrollId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{acceptPayrollId}}",
+                "accept"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Payroll accepted and disbursed successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Payroll accepted and disbursed successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Payroll accepted and disbursement exists\", () => { pm.expect(jsonData.data.status).to.eql(\"ACCEPTED\"); pm.expect(jsonData.data).to.have.property(\"disbursement\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Owner get accepted payroll detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{acceptPayrollId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{acceptPayrollId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Payroll detail retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Payroll detail retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Owner can view accepted payroll\", () => pm.expect(jsonData.data.status).to.eql(\"ACCEPTED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Re-accept accepted payroll",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{acceptPayrollId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{acceptPayrollId}}",
+                "accept"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400, 409, 422]\", function () {",
+                  "  pm.expect([400, 409, 422]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create payroll for reject via internal API",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{rejectReferenceId}}\",\n  \"kilogram\": 50.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"rejectReferenceId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "        if (jsonData.data && jsonData.data.payrollId !== undefined && jsonData.data && jsonData.data.payrollId !== null) {",
+                  "          pm.environment.set(\"rejectPayrollId\", jsonData.data && jsonData.data.payrollId);",
+                  "          console.log(\"Saved rejectPayrollId =\", jsonData.data && jsonData.data.payrollId);",
+                  "        }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin reject payroll",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{rejectPayrollId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{rejectPayrollId}}",
+                "reject"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejectionReason\": \"Data kilogram tidak sesuai dengan laporan lapangan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Payroll rejected\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Payroll rejected\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Payroll rejected with reason\", () => { pm.expect(jsonData.data.status).to.eql(\"REJECTED\"); pm.expect(jsonData.data.rejectionReason).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create payroll for short rejection validation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{shortRejectReferenceId}}\",\n  \"kilogram\": 25.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"shortRejectReferenceId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "        if (jsonData.data && jsonData.data.payrollId !== undefined && jsonData.data && jsonData.data.payrollId !== null) {",
+                  "          pm.environment.set(\"shortRejectPayrollId\", jsonData.data && jsonData.data.payrollId);",
+                  "          console.log(\"Saved shortRejectPayrollId =\", jsonData.data && jsonData.data.payrollId);",
+                  "        }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Reject reason too short",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{shortRejectPayrollId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{shortRejectPayrollId}}",
+                "reject"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rejectionReason\": \"short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh cannot accept payroll",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/{{shortRejectPayrollId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "{{shortRejectPayrollId}}",
+                "accept"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Payroll Read / Query / Negative",
+      "item": [
+        {
+          "name": "Admin get payrolls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Payrolls retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Payrolls retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Paginated payroll response\", () => pm.expect(jsonData.data.content).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin filter payrolls by PENDING",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?status=PENDING&page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?status=PENDING&page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Payrolls retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Payrolls retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin filter payrolls by BURUH HARVEST",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?userRole=BURUH&referenceType=HARVEST&page=0&size=20&sort=amount,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?userRole=BURUH&referenceType=HARVEST&page=0&size=20&sort=amount,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Payrolls retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Payrolls retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buruh get my payrolls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/me?page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "me?page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is My payrolls retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"My payrolls retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buruh filter my payrolls by ACCEPTED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/me?status=ACCEPTED&page=0&size=20&sort=amount,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "me?status=ACCEPTED&page=0&size=20&sort=amount,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is My payrolls retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"My payrolls retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh forbidden to list all payrolls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?page=0&size=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Admin forbidden to access payrolls/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/me?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "me?page=0&size=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid payroll UUID path",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls/not-a-uuid",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls",
+                "not-a-uuid"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400, 404]\", function () {",
+                  "  pm.expect([400, 404]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid payroll query enum",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?status=INVALID&page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?status=INVALID&page=0&size=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid pagination size",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payrolls?page=0&size=999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payrolls?page=0&size=999"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Top-up & Callback",
+      "description": "Top-up create requires Xendit/mock configuration. Valid callback request depends on successful top-up create.",
+      "item": [
+        {
+          "name": "CI - Use seeded pending top-up detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/{{topupId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "{{topupId}}"
+              ]
+            },
+            "description": "CI variant: avoids external Xendit invoice creation. The topupId is seeded directly into the test database before Newman runs."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "pm.test(\"Seeded top-up is pending\", function () {",
+                  "  pm.expect(jsonData.data.id).to.eql(pm.environment.get(\"topupId\"));",
+                  "  pm.expect(jsonData.data.status).to.eql(\"PENDING\");",
+                  "});",
+                  "",
+                  "if (jsonData.data && jsonData.data.amountIdr !== undefined) {",
+                  "  pm.environment.set(\"topupAmountIdr\", jsonData.data.amountIdr);",
+                  "}",
+                  "pm.environment.set(\"topupCreated\", \"seeded\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin get top-up history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup?page=0&size=20&sort=createdAt,desc",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup?page=0&size=20&sort=createdAt,desc"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Top-up history retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Top-up history retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin get top-up detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/{{topupId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "{{topupId}}"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "        pm.test(\"Message is Top-up detail retrieved successfully\", function () {",
+                  "          pm.expect(jsonData.message).to.eql(\"Top-up detail retrieved successfully\");",
+                  "        });",
+                  "",
+                  "pm.test(\"Top-up id matches\", () => pm.expect(jsonData.data.id).to.eql(pm.environment.get(\"topupId\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Xendit callback PAID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-callback-token",
+                "value": "{{callbackToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/callback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "callback"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{callbackGatewayId}}\",\n  \"external_id\": \"{{topupId}}\",\n  \"status\": \"PAID\",\n  \"amount\": 100000.0,\n  \"paid_at\": \"2026-05-21T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"callbackGatewayId\")) {",
+                  "  pm.environment.set(\"callbackGatewayId\", \"inv-postman-\" + Date.now());",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "pm.test(\"Minimal callback response success\", () => pm.expect(jsonData.status).to.eql(\"success\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Duplicate Xendit callback PAID is idempotent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-callback-token",
+                "value": "{{callbackToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/callback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "callback"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{callbackGatewayId}}\",\n  \"external_id\": \"{{topupId}}\",\n  \"status\": \"PAID\",\n  \"amount\": 100000.0,\n  \"paid_at\": \"2026-05-21T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "pm.test(\"Duplicate callback accepted safely\", () => pm.expect(jsonData.status).to.eql(\"success\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid top-up amount max",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountSawitDollar\": 1000000.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid top-up amount negative",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountSawitDollar\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh forbidden to create top-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountSawitDollar\": 10.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Invalid callback token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-callback-token",
+                "value": "wrong-callback-token",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/callback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "callback"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"inv-invalid-token-test\",\n  \"external_id\": \"{{invalidTopupId}}\",\n  \"status\": \"PAID\",\n  \"amount\": 100000.0,\n  \"paid_at\": \"2026-05-21T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"invalidTopupId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Callback unknown topup id",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-callback-token",
+                "value": "{{callbackToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/topup/callback",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "topup",
+                "callback"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"inv-unknown-topup-test\",\n  \"external_id\": \"{{invalidTopupId}}\",\n  \"status\": \"PAID\",\n  \"amount\": 100000.0,\n  \"paid_at\": \"2026-05-21T00:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [404]\", function () {",
+                  "  pm.expect([404]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Wage Config Negative / Secure",
+      "item": [
+        {
+          "name": "Admin get wage history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs/history?page=0&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs",
+                "history?page=0&size=20"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [200]\", function () {",
+                  "  pm.expect([200]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "let jsonData = {};",
+                  "pm.test(\"Response is JSON\", function () {",
+                  "  jsonData = pm.response.json();",
+                  "  pm.expect(jsonData).to.be.an(\"object\");",
+                  "});",
+                  "",
+                  "pm.test(\"Common success envelope\", function () {",
+                  "  pm.expect(jsonData.status).to.eql(\"success\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "});",
+                  "",
+                  "    pm.test(\"Message is Wage config history retrieved successfully\", function () {",
+                  "      pm.expect(jsonData.message).to.eql(\"Wage config history retrieved successfully\");",
+                  "    });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh forbidden to get active wage config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs/active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs",
+                "active"
+              ]
+            },
+            "description": ""
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Buruh forbidden to create wage config",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{buruhToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"upahBuruhPerKg\": 3.0,\n  \"upahSupirPerKg\": 2.0,\n  \"upahMandorPerKg\": 1.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [403]\", function () {",
+                  "  pm.expect([403]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Wage config invalid zero values",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/wage-configs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wage-configs"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"upahBuruhPerKg\": 0,\n  \"upahSupirPerKg\": 0,\n  \"upahMandorPerKg\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 - Internal API Negative / Secure",
+      "item": [
+        {
+          "name": "Duplicate existing buruh wallet returns alreadyProcessed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "    pm.test(\"HTTP status is [200]\", function () {",
+                  "      pm.expect([200]).to.include(pm.response.code);",
+                  "    });",
+                  "",
+                  "    let jsonData = {};",
+                  "    pm.test(\"Response is JSON\", function () {",
+                  "      jsonData = pm.response.json();",
+                  "      pm.expect(jsonData).to.be.an(\"object\");",
+                  "    });",
+                  "",
+                  "    pm.test(\"Common success envelope\", function () {",
+                  "      pm.expect(jsonData.status).to.eql(\"success\");",
+                  "      pm.expect(jsonData).to.have.property(\"data\");",
+                  "    });",
+                  "",
+                  "            if (jsonData.data && jsonData.data.walletId !== undefined && jsonData.data && jsonData.data.walletId !== null) {",
+                  "              pm.environment.set(\"buruhWalletIdDuplicate\", jsonData.data && jsonData.data.walletId);",
+                  "              console.log(\"Saved buruhWalletIdDuplicate =\", jsonData.data && jsonData.data.walletId);",
+                  "            }",
+                  "",
+                  "pm.test(\"Duplicate wallet alreadyProcessed true\", () => pm.expect(jsonData.data.alreadyProcessed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Missing internal API key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [401]\", function () {",
+                  "  pm.expect([401]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SECURITY - Invalid internal API key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "wrong-key",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [401]\", function () {",
+                  "  pm.expect([401]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Internal wallet invalid UUID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/wallets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "wallets"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"not-a-uuid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - ADMIN cannot receive payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{adminId}}\",\n  \"userRole\": \"ADMIN\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{badRuleReferenceId}}\",\n  \"kilogram\": 100.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set(\"badRuleReferenceId\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - BURUH payroll cannot use DELIVERY reference",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"DELIVERY\",\n  \"referenceId\": \"{{badRuleReferenceId}}\",\n  \"kilogram\": 100.0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "NEGATIVE - Invalid kilogram for internal payroll",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Internal-Api-Key",
+                "value": "{{internalApiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/internal/payrolls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "internal",
+                "payrolls"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{buruhId}}\",\n  \"userRole\": \"BURUH\",\n  \"referenceType\": \"HARVEST\",\n  \"referenceId\": \"{{badRuleReferenceId}}\",\n  \"kilogram\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status is [400]\", function () {",
+                  "  pm.expect([400]).to.include(pm.response.code);",
+                  "});",
+                  "let jsonData = {};",
+                  "try {",
+                  "  jsonData = pm.response.json();",
+                  "} catch(e) {",
+                  "  jsonData = {};",
+                  "}",
+                  "pm.test(\"Error response is safe\", function () {",
+                  "  if (jsonData.status !== undefined) {",
+                  "    pm.expect(jsonData.status).to.eql(\"error\");",
+                  "  }",
+                  "  if (jsonData.message !== undefined) {",
+                  "    pm.expect(jsonData.message).to.be.a(\"string\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"exception\");",
+                  "    pm.expect(jsonData.message.toLowerCase()).to.not.include(\"stacktrace\");",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8002/api/v1"
+    },
+    {
+      "key": "adminId",
+      "value": "dfedfa3b-eff2-49a4-bd8b-a69925c0a005"
+    },
+    {
+      "key": "buruhId",
+      "value": "dfedfa3b-eff2-49a4-bd8b-a69925c0a006"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (!pm.environment.get('collectionRunId')) {",
+          "  pm.environment.set('collectionRunId', Date.now().toString());",
+          "}",
+          "pm.environment.set('nowIso', new Date().toISOString());"
+        ]
+      }
+    }
+  ]
+}

@@ -185,9 +185,11 @@ class WalletTest {
                 .balance(new BigDecimal("50.00"))
                 .build();
 
+        BigDecimal debitAmount = new BigDecimal("60.00");
+
         InsufficientBalanceException exception = assertThrows(
                 InsufficientBalanceException.class,
-                () -> wallet.debit(new BigDecimal("60.00"))
+                () -> wallet.debit(debitAmount)
         );
 
         assertEquals("Insufficient wallet balance", exception.getMessage());

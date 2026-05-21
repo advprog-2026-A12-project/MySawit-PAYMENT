@@ -324,7 +324,10 @@ class TopUpControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.findAndRegisterModules().writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("success"));
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.message").value("Xendit callback processed successfully"))
+                .andExpect(jsonPath("$.data").doesNotExist())
+                .andExpect(jsonPath("$.timestamp").exists());
 
         verify(topUpService).handleXenditCallback(eq("callback-token"), any(XenditCallbackRequest.class));
     }

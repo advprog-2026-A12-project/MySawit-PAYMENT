@@ -19,13 +19,17 @@ import java.security.MessageDigest;
 @Order(1)
 public class InternalApiKeyFilter implements Filter {
 
-    private static final String INTERNAL_PATH_PREFIX = "/api/v1/internal/";
     private static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
 
     private final String internalApiKey;
+    private final InternalPathMatcher internalPathMatcher;
 
-    public InternalApiKeyFilter(@Value("${internal.api-key}") String internalApiKey) {
+    public InternalApiKeyFilter(
+            @Value("${internal.api-key}") String internalApiKey,
+            @Value("${internal.path-prefix}") String internalPathPrefix
+    ) {
         this.internalApiKey = internalApiKey;
+        this.internalPathMatcher = new InternalPathMatcher(internalPathPrefix);
     }
 
     @Override
@@ -37,7 +41,7 @@ public class InternalApiKeyFilter implements Filter {
 
         String path = request.getRequestURI();
 
-        if (!path.startsWith(INTERNAL_PATH_PREFIX)) {
+        if (!internalPathMatcher.matches(path)) {
             chain.doFilter(request, response);
             return;
         }

@@ -23,7 +23,7 @@ class InternalApiKeyFilterTest {
 
     @BeforeEach
     void setUp() {
-        filter = new InternalApiKeyFilter(INTERNAL_API_KEY);
+        filter = new InternalApiKeyFilter(INTERNAL_API_KEY, "/api/v1/internal");
     }
 
     @Test
@@ -110,5 +110,39 @@ class InternalApiKeyFilterTest {
 
         verify(chain, times(1)).doFilter(request, response);
         assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void shouldUseConfiguredInternalPathPrefix() throws Exception {
+        InternalApiKeyFilter customFilter = new InternalApiKeyFilter(
+                INTERNAL_API_KEY,
+                "/custom/internal"
+        );
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/custom/internal/wallets");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        customFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid or missing internal API key"));
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void internalPathMatcherShouldHandleNullPath() {
+        InternalPathMatcher matcher = new InternalPathMatcher("/api/v1/internal");
+
+        assertEquals(false, matcher.matches(null));
+    }
+
+    @Test
+    void internalPathMatcherShouldKeepConfiguredTrailingSlash() {
+        InternalPathMatcher matcher = new InternalPathMatcher("/api/v1/internal/");
+
+        assertEquals(true, matcher.matches("/api/v1/internal/wallets"));
     }
 }

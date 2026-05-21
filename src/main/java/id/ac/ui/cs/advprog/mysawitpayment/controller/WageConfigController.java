@@ -37,7 +37,7 @@ public class WageConfigController {
         CurrentWageConfigResponse response = wageConfigService.getCurrentWageConfig(requester);
 
         return ApiResponse.<CurrentWageConfigResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Active wage config retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -54,7 +54,7 @@ public class WageConfigController {
         CreateWageConfigResponse response = wageConfigService.createWageConfig(createWageConfigRequest, requester);
 
         return ApiResponse.<CreateWageConfigResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Wage config updated successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -84,7 +84,7 @@ public class WageConfigController {
                 .build();
 
         return ApiResponse.<PageResponse<HistoryWageConfigResponse>>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Wage config history retrieved successfully")
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
