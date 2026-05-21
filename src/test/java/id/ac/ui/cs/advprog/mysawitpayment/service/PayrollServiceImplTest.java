@@ -151,7 +151,7 @@ class PayrollServiceImplTest {
         WalletMutationResult adminWalletResult = createWalletMutationResult("50000.00", "49437.39");
         WalletMutationResult workerWalletResult = createWalletMutationResult("688.14", "1250.75");
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
         when(walletService.debitWallet(
                 adminId,
                 payroll.getAmount(),
@@ -192,7 +192,7 @@ class PayrollServiceImplTest {
         assertEquals(adminId, savedPayroll.getApprovedBy());
         assertNotNull(savedPayroll.getApprovedAt());
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
     }
 
     @Test
@@ -200,13 +200,13 @@ class PayrollServiceImplTest {
         UUID payrollId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
                 payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
@@ -221,16 +221,39 @@ class PayrollServiceImplTest {
         Payroll payroll = createPendingPayroll(payrollId, userId);
         payroll.setStatus(PayrollStatus.ACCEPTED);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
                 payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void payrollProcessingMethodsShouldBeTransactional() throws Exception {
+        boolean acceptTransactional = PayrollServiceImpl.class
+                .getMethod("acceptPayroll", UUID.class, AuthenticatedUser.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+        boolean rejectTransactional = PayrollServiceImpl.class
+                .getMethod("rejectPayroll", UUID.class, AuthenticatedUser.class, String.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+
+        assertTrue(acceptTransactional);
+        assertTrue(rejectTransactional);
+    }
+
+    @Test
+    void payrollProcessingLookupShouldUsePessimisticWriteLock() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock = PayrollRepository.class
+                .getMethod("findByIdForUpdate", UUID.class)
+                .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertNotNull(lock);
+        assertEquals(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE, lock.value());
     }
 
     @Test
@@ -242,7 +265,7 @@ class PayrollServiceImplTest {
 
         Payroll payroll = createPendingPayroll(payrollId, userId);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
         when(payrollRepository.save(payroll)).thenReturn(payroll);
 
         RejectPayrollResponse result = payrollService.rejectPayroll(payrollId, adminUser(adminId), reason);
@@ -266,7 +289,7 @@ class PayrollServiceImplTest {
         assertEquals(reason, savedPayroll.getRejectionReason());
         assertNotNull(savedPayroll.getApprovedAt());
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
     }
@@ -276,13 +299,13 @@ class PayrollServiceImplTest {
         UUID payrollId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
                 payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
@@ -297,13 +320,13 @@ class PayrollServiceImplTest {
         Payroll payroll = createPendingPayroll(payrollId, userId);
         payroll.setStatus(PayrollStatus.REJECTED);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
                 payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
