@@ -98,7 +98,7 @@ VALUES (
   10.00,
   100000.00,
   'XENDIT',
-  NULL,
+  'inv-ci-paid-001',
   NULL,
   'PENDING',
   now(),

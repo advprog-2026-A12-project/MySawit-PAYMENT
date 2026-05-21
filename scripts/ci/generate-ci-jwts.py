@@ -11,6 +11,10 @@ from pathlib import Path
 SECRET = os.environ.get("PAYMENT_CI_JWT_SECRET") or os.environ.get("JWT_SECRET")
 if not SECRET:
     raise SystemExit("Missing PAYMENT_CI_JWT_SECRET or JWT_SECRET")
+try:
+    SIGNING_KEY = base64.b64decode(SECRET, validate=True)
+except ValueError as exc:
+    raise SystemExit("PAYMENT_CI_JWT_SECRET/JWT_SECRET must be Base64 encoded") from exc
 
 ADMIN_ID = os.environ.get("PAYMENT_CI_ADMIN_ID", "dfedfa3b-eff2-49a4-bd8b-a69925c0a005")
 BURUH_ID = os.environ.get("PAYMENT_CI_BURUH_ID", "dfedfa3b-eff2-49a4-bd8b-a69925c0a006")
@@ -26,7 +30,7 @@ def sign(payload: dict) -> str:
     header_b64 = b64url(json.dumps(header, separators=(",", ":")).encode())
     payload_b64 = b64url(json.dumps(payload, separators=(",", ":")).encode())
     signing_input = f"{header_b64}.{payload_b64}".encode()
-    signature = hmac.new(SECRET.encode(), signing_input, hashlib.sha512).digest()
+    signature = hmac.new(SIGNING_KEY, signing_input, hashlib.sha512).digest()
     return f"{header_b64}.{payload_b64}.{b64url(signature)}"
 
 
