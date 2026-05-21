@@ -27,7 +27,7 @@ class JwtFilterTest {
     @BeforeEach
     void setUp() {
         jwtUtil = mock(JwtUtil.class);
-        jwtFilter = new JwtFilter(jwtUtil);
+        jwtFilter = new JwtFilter(jwtUtil, "/api/v1/internal");
     }
 
     @Test
@@ -229,5 +229,22 @@ class JwtFilterTest {
         assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testShouldBypassJwtValidationForConfiguredInternalEndpoint() throws Exception {
+        JwtFilter customFilter = new JwtFilter(jwtUtil, "custom/internal");
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/custom/internal/wallets");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        customFilter.doFilter(request, response, chain);
+
+        verify(chain, times(1)).doFilter(request, response);
+        verify(jwtUtil, never()).isValid(anyString());
+        verify(jwtUtil, never()).extractClaims(anyString());
     }
 }

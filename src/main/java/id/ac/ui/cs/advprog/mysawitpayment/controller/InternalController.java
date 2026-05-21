@@ -18,7 +18,7 @@ import java.time.ZoneOffset;
 
 
 @RestController
-@RequestMapping("/api/v1/internal")
+@RequestMapping("${internal.path-prefix:/api/v1/internal}")
 @RequiredArgsConstructor
 public class InternalController {
 

@@ -24,6 +24,7 @@ jobs:
       POSTGRES_USER: payment_user
       POSTGRES_PASSWORD: paymentpassword
       POSTGRES_PORT: 5435
+      INTERNAL_PATH_PREFIX: /api/v1/internal
     services:
       postgres:
         image: postgres:16
@@ -163,12 +164,13 @@ jobs:
           XENDIT_SECRET_KEY: ${{ secrets.XENDIT_SECRET_KEY || '' }}
           XENDIT_WEBHOOK_TOKEN: ${{ secrets.XENDIT_WEBHOOK_TOKEN || '' }}
           INTERNAL_API_KEY: ${{ secrets.INTERNAL_API_KEY || '' }}
+          INTERNAL_PATH_PREFIX: ${{ vars.INTERNAL_PATH_PREFIX || '/api/v1/internal' }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           port: ${{ secrets.EC2_PORT || 22 }}
-          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE,CONTAINER_NAME,HOST_PORT,CONTAINER_PORT,DEPLOY_DIR,ENV_FILE_PATH,HEALTHCHECK_URL,SPRING_PROFILES_ACTIVE,SERVER_PORT,DATABASE_URL,DATABASE_USERNAME,DATABASE_PASSWORD,JWT_SECRET,XENDIT_SECRET_KEY,XENDIT_WEBHOOK_TOKEN,INTERNAL_API_KEY
+          envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN,IMAGE,CONTAINER_NAME,HOST_PORT,CONTAINER_PORT,DEPLOY_DIR,ENV_FILE_PATH,HEALTHCHECK_URL,SPRING_PROFILES_ACTIVE,SERVER_PORT,DATABASE_URL,DATABASE_USERNAME,DATABASE_PASSWORD,JWT_SECRET,XENDIT_SECRET_KEY,XENDIT_WEBHOOK_TOKEN,INTERNAL_API_KEY,INTERNAL_PATH_PREFIX
           script: |
             set -euo pipefail
             docker compose version >/dev/null 2>&1 || (echo "docker compose plugin is required on EC2 host" && exit 1)
@@ -180,7 +182,7 @@ jobs:
             cd "$DEPLOY_DIR"
 
             : > .runtime.env
-            for key in SPRING_PROFILES_ACTIVE SERVER_PORT DATABASE_URL DATABASE_USERNAME DATABASE_PASSWORD JWT_SECRET XENDIT_SECRET_KEY XENDIT_WEBHOOK_TOKEN INTERNAL_API_KEY; do
+            for key in SPRING_PROFILES_ACTIVE SERVER_PORT DATABASE_URL DATABASE_USERNAME DATABASE_PASSWORD JWT_SECRET XENDIT_SECRET_KEY XENDIT_WEBHOOK_TOKEN INTERNAL_API_KEY INTERNAL_PATH_PREFIX; do
               val="${!key:-}"
               if [ -n "$val" ]; then
                 printf '%s=%s\n' "$key" "$val" >> .runtime.env
