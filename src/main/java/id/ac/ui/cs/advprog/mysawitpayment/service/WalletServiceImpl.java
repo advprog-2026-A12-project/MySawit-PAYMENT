@@ -73,6 +73,14 @@ public class WalletServiceImpl implements WalletService {
     ) {
 
         Wallet wallet = findWalletForUpdateOrThrow(userId);
+        var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                referenceType,
+                referenceId,
+                TransactionType.CREDIT
+        );
+        if (existingTransaction.isPresent()) {
+            return mapToWalletMutationResult(existingTransaction.get());
+        }
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.credit(amount);
@@ -108,6 +116,14 @@ public class WalletServiceImpl implements WalletService {
             String description
     ) {
         Wallet wallet = findWalletForUpdateOrThrow(userId);
+        var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                referenceType,
+                referenceId,
+                TransactionType.DEBIT
+        );
+        if (existingTransaction.isPresent()) {
+            return mapToWalletMutationResult(existingTransaction.get());
+        }
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.debit(amount);
@@ -170,6 +186,13 @@ public class WalletServiceImpl implements WalletService {
     private Wallet findWalletForUpdateOrThrow(UUID userId) {
         return walletRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(WalletNotFoundException::new);
+    }
+
+    private WalletMutationResult mapToWalletMutationResult(WalletTransaction walletTransaction) {
+        return WalletMutationResult.builder()
+                .balanceBefore(walletTransaction.getBalanceBefore())
+                .balanceAfter(walletTransaction.getBalanceAfter())
+                .build();
     }
 
     private Specification<WalletTransaction> walletTransactionSpec(
