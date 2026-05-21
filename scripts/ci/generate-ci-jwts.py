@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate HS512 JWTs for Payment CI tests without external dependencies."""
+"""Generate JWTs for Payment CI tests without external dependencies."""
 import base64
 import hashlib
 import hmac
@@ -21,16 +21,30 @@ BURUH_ID = os.environ.get("PAYMENT_CI_BURUH_ID", "dfedfa3b-eff2-49a4-bd8b-a69925
 TTL_SECONDS = int(os.environ.get("PAYMENT_CI_JWT_TTL_SECONDS", str(60 * 60 * 24)))
 
 
+def select_jjwt_hmac_algorithm(signing_key: bytes) -> tuple[str, str]:
+    key_bits = len(signing_key) * 8
+    if key_bits >= 512:
+        return "HS512", "sha512"
+    if key_bits >= 384:
+        return "HS384", "sha384"
+    if key_bits >= 256:
+        return "HS256", "sha256"
+    raise SystemExit("JWT secret must decode to at least 256 bits")
+
+
+JWT_ALG, HASH_ALG = select_jjwt_hmac_algorithm(SIGNING_KEY)
+
+
 def b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
 
 
 def sign(payload: dict) -> str:
-    header = {"alg": "HS512", "typ": "JWT"}
+    header = {"alg": JWT_ALG, "typ": "JWT"}
     header_b64 = b64url(json.dumps(header, separators=(",", ":")).encode())
     payload_b64 = b64url(json.dumps(payload, separators=(",", ":")).encode())
     signing_input = f"{header_b64}.{payload_b64}".encode()
-    signature = hmac.new(SIGNING_KEY, signing_input, hashlib.sha512).digest()
+    signature = hmac.new(SIGNING_KEY, signing_input, getattr(hashlib, HASH_ALG)).digest()
     return f"{header_b64}.{payload_b64}.{b64url(signature)}"
 
 
@@ -53,4 +67,5 @@ if out:
 print("Generated CI JWTs:")
 print(f"  admin sub = {ADMIN_ID}")
 print(f"  buruh sub = {BURUH_ID}")
+print(f"  alg       = {JWT_ALG}")
 print(f"  exp       = {exp}")
