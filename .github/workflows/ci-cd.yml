@@ -154,13 +154,13 @@ jobs:
           test -n "$XENDIT_WEBHOOK_TOKEN" || (echo "Missing XENDIT_WEBHOOK_TOKEN" && exit 1)
           test -n "$SPRING_DATASOURCE_URL" || (echo "Missing SPRING_DATASOURCE_URL" && exit 1)
 
+      - name: Build Payment app
+        run: ./gradlew clean bootJar
+
       - name: Generate CI JWTs and Postman environment
         run: |
           python scripts/ci/generate-ci-jwts.py
           python scripts/ci/generate-postman-env.py
-
-      - name: Build Payment app
-        run: ./gradlew clean bootJar
 
       - name: Start Payment app
         run: |
