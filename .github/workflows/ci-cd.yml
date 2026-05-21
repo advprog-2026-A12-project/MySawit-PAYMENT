@@ -164,6 +164,8 @@ jobs:
 
       - name: Start Payment app
         run: |
+          mkdir -p build/ci
+
           APP_JAR=$(ls build/libs/*.jar | grep -v plain | head -n 1)
           echo "Starting $APP_JAR"
           java -jar "$APP_JAR" --server.port=8002 > build/ci/payment-app.log 2>&1 &
