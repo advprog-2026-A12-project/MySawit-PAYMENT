@@ -222,6 +222,20 @@ class PayrollControllerTest {
     }
 
     @Test
+    void getAllPayrollsShouldRejectInvalidDateRange() throws Exception {
+        mockMvc.perform(get("/api/v1/payrolls")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .param("dateFrom", "2026-05-21")
+                        .param("dateTo", "2026-05-20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("dateFrom must be before or equal to dateTo"));
+
+        verify(payrollService, never()).getAllPayrolls(any(AuthenticatedUser.class), any(), any());
+    }
+
+    @Test
     void getMyPayrollsSuccess() throws Exception {
         UUID userId = UUID.randomUUID();
 
@@ -257,6 +271,20 @@ class PayrollControllerTest {
         assertEquals("2026-05-01T00:00Z", filterCaptor.getValue().dateFrom().toString());
         assertEquals("2026-05-21T00:00Z", filterCaptor.getValue().dateTo().toString());
         assertEquals("amount: ASC", pageableCaptor.getValue().getSort().toString());
+    }
+
+    @Test
+    void getMyPayrollsShouldRejectInvalidDateRange() throws Exception {
+        mockMvc.perform(get("/api/v1/payrolls/me")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "BURUH")
+                        .param("dateFrom", "2026-05-21")
+                        .param("dateTo", "2026-05-20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("dateFrom must be before or equal to dateTo"));
+
+        verify(payrollService, never()).getMyPayrolls(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test

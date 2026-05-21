@@ -180,6 +180,22 @@ class WalletControllerTest {
     }
 
     @Test
+    void getTransactionsShouldRejectInvalidDateRange() throws Exception {
+        UUID userId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/wallets/me/transactions")
+                        .requestAttr("userId", userId.toString())
+                        .requestAttr("userRole", "BURUH")
+                        .param("dateFrom", "2026-05-21")
+                        .param("dateTo", "2026-05-20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("dateFrom must be before or equal to dateTo"));
+
+        verify(walletService, never()).getMyTransactions(any(AuthenticatedUser.class), any(), any());
+    }
+
+    @Test
     void getWalletByUserIdAdmin() throws Exception {
         UUID targetUserId = UUID.randomUUID();
 
