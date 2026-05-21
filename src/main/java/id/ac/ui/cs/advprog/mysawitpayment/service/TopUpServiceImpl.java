@@ -19,6 +19,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -106,13 +107,14 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     @Override
+    @Transactional
     public void handleXenditCallback(String callbackToken, XenditCallbackRequest request) {
         validateCallbackToken(callbackToken);
 
         UUID transactionId = parseCallbackTransactionId(request);
         String callbackStatus = normalizeCallbackStatus(request);
 
-        PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId)
+        PaymentTransaction transaction = paymentTransactionRepository.findByIdForUpdate(transactionId)
                 .orElseThrow(PaymentTransactionNotFoundException::new);
 
         validateCallbackMatchesTransaction(transaction, request);
