@@ -93,7 +93,7 @@ public class PayrollServiceImpl implements PayrollService {
     public AcceptPayrollResponse acceptPayroll(UUID payrollId, AuthenticatedUser requester) {
         authorizationService.requireAdmin(requester);
 
-        Payroll payroll = findPayrollOrThrow(payrollId);
+        Payroll payroll = findPayrollForUpdateOrThrow(payrollId);
         ensurePending(payroll, payrollId);
 
         WalletMutationResult adminWalletResult = walletService.debitWallet(
@@ -126,10 +126,11 @@ public class PayrollServiceImpl implements PayrollService {
     }
 
     @Override
+    @Transactional
     public RejectPayrollResponse rejectPayroll(UUID payrollId, AuthenticatedUser requester, String reason) {
         authorizationService.requireAdmin(requester);
 
-        Payroll payroll = findPayrollOrThrow(payrollId);
+        Payroll payroll = findPayrollForUpdateOrThrow(payrollId);
         ensurePending(payroll, payrollId);
 
         payroll.setStatus(PayrollStatus.REJECTED);
@@ -237,6 +238,12 @@ public class PayrollServiceImpl implements PayrollService {
 
     private Payroll findPayrollOrThrow(UUID payrollId) {
         return payrollRepository.findById(payrollId)
+                .orElseThrow(() ->
+                        new PayrollNotFoundException("Payroll " + payrollId + " not found"));
+    }
+
+    private Payroll findPayrollForUpdateOrThrow(UUID payrollId) {
+        return payrollRepository.findByIdForUpdate(payrollId)
                 .orElseThrow(() ->
                         new PayrollNotFoundException("Payroll " + payrollId + " not found"));
     }
