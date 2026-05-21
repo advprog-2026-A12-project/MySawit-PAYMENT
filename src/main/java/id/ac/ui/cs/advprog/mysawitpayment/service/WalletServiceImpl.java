@@ -72,7 +72,7 @@ public class WalletServiceImpl implements WalletService {
             String description
     ) {
 
-        Wallet wallet = findWalletOrThrow(userId);
+        Wallet wallet = findWalletForUpdateOrThrow(userId);
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.credit(amount);
@@ -107,7 +107,7 @@ public class WalletServiceImpl implements WalletService {
             UUID referenceId,
             String description
     ) {
-        Wallet wallet = findWalletOrThrow(userId);
+        Wallet wallet = findWalletForUpdateOrThrow(userId);
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.debit(amount);
@@ -164,6 +164,11 @@ public class WalletServiceImpl implements WalletService {
 
     private Wallet findWalletOrThrow(UUID userId) {
         return walletRepository.findByUserId(userId)
+                .orElseThrow(WalletNotFoundException::new);
+    }
+
+    private Wallet findWalletForUpdateOrThrow(UUID userId) {
+        return walletRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(WalletNotFoundException::new);
     }
 
