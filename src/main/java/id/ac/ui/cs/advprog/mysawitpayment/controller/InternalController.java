@@ -35,7 +35,7 @@ public class InternalController {
                 : "Payroll created successfully";
 
         return ApiResponse.<PayrollCreationResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message(message)
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -53,7 +53,7 @@ public class InternalController {
                 : "Wallet created successfully";
 
         return ApiResponse.<WalletCreationResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message(message)
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))

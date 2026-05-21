@@ -44,14 +44,14 @@ import java.time.ZoneOffset;
 public class PayrollController {
 
     private static final Map<String, String> PAYROLL_ADMIN_SORT_FIELDS = Map.of(
-            "createdAt", "createdAt",
-            "amount", "amount",
-            "kilogram", "kilogram"
+            ControllerConstants.SORT_CREATED_AT, ControllerConstants.SORT_CREATED_AT,
+            ControllerConstants.SORT_AMOUNT, ControllerConstants.SORT_AMOUNT,
+            ControllerConstants.SORT_KILOGRAM, ControllerConstants.SORT_KILOGRAM
     );
 
     private static final Map<String, String> PAYROLL_SELF_SORT_FIELDS = Map.of(
-            "createdAt", "createdAt",
-            "amount", "amount"
+            ControllerConstants.SORT_CREATED_AT, ControllerConstants.SORT_CREATED_AT,
+            ControllerConstants.SORT_AMOUNT, ControllerConstants.SORT_AMOUNT
     );
 
     private final PayrollService payrollService;
@@ -67,7 +67,7 @@ public class PayrollController {
             @RequestParam(required = false) ReferenceType referenceType,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
-            @RequestParam(defaultValue = "createdAt,desc") String sort
+            @RequestParam(defaultValue = ControllerConstants.DEFAULT_CREATED_AT_DESC) String sort
     ) {
         PageableRequest.validateDateRange(dateFrom, dateTo);
 
@@ -76,7 +76,7 @@ public class PayrollController {
                 size,
                 sort,
                 PAYROLL_ADMIN_SORT_FIELDS,
-                "createdAt,desc"
+                ControllerConstants.DEFAULT_CREATED_AT_DESC
         );
 
         PayrollFilter filter = new PayrollFilter(
@@ -103,7 +103,7 @@ public class PayrollController {
                         .build();
 
         return ApiResponse.<PageResponse<AdminPayrollResponse>>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Payrolls retrieved successfully")
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -118,7 +118,7 @@ public class PayrollController {
             @RequestParam(required = false) PayrollStatus status,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
-            @RequestParam(defaultValue = "createdAt,desc") String sort
+            @RequestParam(defaultValue = ControllerConstants.DEFAULT_CREATED_AT_DESC) String sort
     ) {
         PageableRequest.validateDateRange(dateFrom, dateTo);
 
@@ -127,7 +127,7 @@ public class PayrollController {
                 size,
                 sort,
                 PAYROLL_SELF_SORT_FIELDS,
-                "createdAt,desc"
+                ControllerConstants.DEFAULT_CREATED_AT_DESC
         );
 
         PayrollFilter filter = new PayrollFilter(
@@ -154,7 +154,7 @@ public class PayrollController {
                         .build();
 
         return ApiResponse.<PageResponse<PayrollResponse>>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("My payrolls retrieved successfully")
                 .data(pageResponse)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -173,7 +173,7 @@ public class PayrollController {
         );
 
         return ApiResponse.<PayrollDetailResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Payroll detail retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -190,7 +190,7 @@ public class PayrollController {
                 payrollService.acceptPayroll(payrollId, AuthenticatedUser.from(request));
 
         return ApiResponse.<AcceptPayrollResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Payroll accepted and disbursed successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -212,7 +212,7 @@ public class PayrollController {
                 );
 
         return ApiResponse.<RejectPayrollResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Payroll rejected")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
