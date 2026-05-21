@@ -516,6 +516,8 @@ Response `data.content[]`:
   "amountIdr": 150000.00,
   "paymentGateway": "XENDIT",
   "status": "SUCCESS",
+  "paymentUrl": "https://pay.xendit.co/invoice",
+  "expiresAt": "2026-05-21T01:00:00Z",
   "createdAt": "2026-05-21T00:00:00Z",
   "updatedAt": "2026-05-21T00:00:00Z"
 }
@@ -552,6 +554,8 @@ Response `data`:
   "exchangeRate": "1 SD = Rp 10,000",
   "paymentGateway": "XENDIT",
   "gatewayReferenceId": "inv-123",
+  "paymentUrl": "https://pay.xendit.co/invoice",
+  "expiresAt": "2026-05-21T01:00:00Z",
   "status": "SUCCESS",
   "createdAt": "2026-05-21T00:00:00Z",
   "updatedAt": "2026-05-21T00:00:00Z"
