@@ -119,12 +119,17 @@ public class TopUpController {
     }
 
     @PostMapping("/callback")
-    public Map<String, String> handleXenditCallback(
+    public ApiResponse<Object> handleXenditCallback(
             @RequestHeader(value = "x-callback-token", required = false) String callbackToken,
             @Valid @RequestBody XenditCallbackRequest request
     ) {
         topUpService.handleXenditCallback(callbackToken, request);
-        return Map.of("status", ControllerConstants.RESPONSE_STATUS_SUCCESS);
+        return ApiResponse.builder()
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
+                .message("Xendit callback processed successfully")
+                .data(null)
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
     }
 
 }

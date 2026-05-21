@@ -6,12 +6,14 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.Map;
 import java.util.Set;
@@ -41,6 +43,18 @@ class GlobalExceptionHandlerTest {
                 handler.handleNotFound(new WalletNotFoundException());
 
         assertErrorResponse(response, HttpStatus.NOT_FOUND, "Wallet not found");
+    }
+
+    @Test
+    void handleNoResourceFoundShouldReturnNotFoundErrorResponse() {
+        NoResourceFoundException exception = new NoResourceFoundException(
+                HttpMethod.GET,
+                "/api/v1/payrolls/not-a-uuid"
+        );
+
+        ResponseEntity<ApiResponse<Object>> response = handler.handleNoResourceFound(exception);
+
+        assertErrorResponse(response, HttpStatus.NOT_FOUND, "Resource not found");
     }
 
     @Test
