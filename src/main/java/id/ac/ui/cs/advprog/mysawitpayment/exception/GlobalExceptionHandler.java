@@ -36,7 +36,8 @@ public class GlobalExceptionHandler {
             GatewayReferenceAlreadyAssignedException.class,
             InsufficientBalanceException.class,
             PaymentTransactionAlreadyProcessedException.class,
-            PayrollAlreadyProcessedException.class
+            PayrollAlreadyProcessedException.class,
+            WageConfigConflictException.class
     })
     public ResponseEntity<ApiResponse<Object>> handleConflict(RuntimeException exception) {
         return error(HttpStatus.CONFLICT, exception.getMessage(), null);
