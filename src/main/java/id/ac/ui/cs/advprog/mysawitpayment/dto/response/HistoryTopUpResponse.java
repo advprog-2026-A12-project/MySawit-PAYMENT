@@ -21,6 +21,10 @@ public class HistoryTopUpResponse {
 
     private String status;
 
+    private String paymentUrl;
+
+    private OffsetDateTime expiresAt;
+
     private OffsetDateTime createdAt;
 
     private OffsetDateTime updatedAt;
