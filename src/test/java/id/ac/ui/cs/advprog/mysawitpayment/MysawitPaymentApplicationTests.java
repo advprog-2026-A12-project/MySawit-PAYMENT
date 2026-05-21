@@ -7,6 +7,8 @@ import org.springframework.test.context.ActiveProfiles;
 class MysawitPaymentApplicationTests {
 
 	@Test
-	void contextLoads() {}
+	void contextLoads() {
+		// Intentionally empty: @SpringBootTest will fail if the application context cannot be loaded.
+	}
 
 }
