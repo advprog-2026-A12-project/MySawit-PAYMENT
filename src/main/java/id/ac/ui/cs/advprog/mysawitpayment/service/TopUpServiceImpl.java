@@ -13,6 +13,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
@@ -127,11 +128,16 @@ public class TopUpServiceImpl implements TopUpService {
         @SuppressWarnings("unchecked")
         Map<String, Object> payloadMap = mapper.convertValue(request, Map.class);
 
-        if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
-            return;
+        PaymentTransactionStatus requestedStatus = mapCallbackStatus(callbackStatus);
+
+        if (transaction.getStatus() != PaymentTransactionStatus.PENDING) {
+            if (transaction.getStatus() == requestedStatus) {
+                return;
+            }
+            throw new PaymentTransactionAlreadyProcessedException();
         }
 
-        if ("PAID".equals(callbackStatus)) {
+        if (requestedStatus == PaymentTransactionStatus.SUCCESS) {
             transaction.markSuccess(payloadMap);
 
             walletService.creditWallet(
@@ -141,13 +147,26 @@ public class TopUpServiceImpl implements TopUpService {
                     transaction.getId(),
                     "Top-up via Xendit"
             );
-        } else if ("EXPIRED".equals(callbackStatus)) {
+        } else if (requestedStatus == PaymentTransactionStatus.EXPIRED) {
             transaction.markExpired(payloadMap);
-        } else if ("FAILED".equals(callbackStatus)) {
+        } else if (requestedStatus == PaymentTransactionStatus.FAILED) {
             transaction.markFailed(payloadMap);
         }
 
         paymentTransactionRepository.save(transaction);
+    }
+
+    private PaymentTransactionStatus mapCallbackStatus(String callbackStatus) {
+        if ("PAID".equals(callbackStatus)) {
+            return PaymentTransactionStatus.SUCCESS;
+        }
+        if ("EXPIRED".equals(callbackStatus)) {
+            return PaymentTransactionStatus.EXPIRED;
+        }
+        if ("FAILED".equals(callbackStatus)) {
+            return PaymentTransactionStatus.FAILED;
+        }
+        throw new IllegalArgumentException("Unsupported Xendit callback status");
     }
 
     @Override
