@@ -506,6 +506,40 @@ class WalletServiceImplTest {
     }
 
     @Test
+    void creditWalletShouldReturnExistingLedgerWhenReferenceAlreadyCredited() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        Wallet wallet = createWallet(walletId, userId);
+        WalletTransaction existingTransaction = createTransaction(UUID.randomUUID(), walletId, referenceId);
+
+        when(walletRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(wallet));
+        when(walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                "PAYROLL_DISBURSEMENT",
+                referenceId,
+                TransactionType.CREDIT
+        )).thenReturn(Optional.of(existingTransaction));
+
+        WalletMutationResult result = walletService.creditWallet(
+                userId,
+                new BigDecimal("500.00"),
+                "PAYROLL_DISBURSEMENT",
+                referenceId,
+                "Payroll disbursement"
+        );
+
+        assertNotNull(result);
+        assertEquals(existingTransaction.getBalanceBefore(), result.getBalanceBefore());
+        assertEquals(existingTransaction.getBalanceAfter(), result.getBalanceAfter());
+        assertEquals(new BigDecimal("1500.00"), wallet.getBalance());
+
+        verify(walletRepository).findByUserIdForUpdate(userId);
+        verify(walletRepository, never()).save(any(Wallet.class));
+        verify(walletTransactionRepository, never()).save(any(WalletTransaction.class));
+    }
+
+    @Test
     void debitWalletShouldDecreaseBalanceAndSaveTransaction() {
         UUID walletId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -566,6 +600,50 @@ class WalletServiceImplTest {
 
         verify(walletRepository).findByUserIdForUpdate(userId);
         verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void debitWalletShouldReturnExistingLedgerWhenReferenceAlreadyDebited() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        Wallet wallet = createWallet(walletId, userId);
+        WalletTransaction existingTransaction = WalletTransaction.builder()
+                .id(UUID.randomUUID())
+                .walletId(walletId)
+                .transactionType(TransactionType.DEBIT)
+                .amount(new BigDecimal("500.00"))
+                .balanceBefore(new BigDecimal("1500.00"))
+                .balanceAfter(new BigDecimal("1000.00"))
+                .referenceType("PAYROLL_DEDUCTION")
+                .referenceId(referenceId)
+                .description("Payroll deduction")
+                .build();
+
+        when(walletRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(wallet));
+        when(walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                "PAYROLL_DEDUCTION",
+                referenceId,
+                TransactionType.DEBIT
+        )).thenReturn(Optional.of(existingTransaction));
+
+        WalletMutationResult result = walletService.debitWallet(
+                userId,
+                new BigDecimal("500.00"),
+                "PAYROLL_DEDUCTION",
+                referenceId,
+                "Payroll deduction"
+        );
+
+        assertNotNull(result);
+        assertEquals(existingTransaction.getBalanceBefore(), result.getBalanceBefore());
+        assertEquals(existingTransaction.getBalanceAfter(), result.getBalanceAfter());
+        assertEquals(new BigDecimal("1500.00"), wallet.getBalance());
+
+        verify(walletRepository).findByUserIdForUpdate(userId);
+        verify(walletRepository, never()).save(any(Wallet.class));
+        verify(walletTransactionRepository, never()).save(any(WalletTransaction.class));
     }
 
     @Test
