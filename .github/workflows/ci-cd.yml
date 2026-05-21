@@ -217,7 +217,7 @@ jobs:
           path: build/ci/payment-app.log
 
   deploy_staging:
-    needs: ci, payment-newman-regression
+    needs: [ci, payment-newman-regression]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     steps:
@@ -251,7 +251,7 @@ jobs:
         run: git push heroku staging:main --force
 
   deploy_production:
-    needs: ci, payment-newman-regression
+    needs: [ci, payment-newman-regression]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
