@@ -68,6 +68,7 @@ public class PayrollController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
         Pageable pageable = PageableRequest.of(
                 page,
@@ -118,6 +119,7 @@ public class PayrollController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
         Pageable pageable = PageableRequest.of(
                 page,

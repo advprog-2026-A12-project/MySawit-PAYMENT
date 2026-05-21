@@ -66,6 +66,7 @@ public class WalletController {
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
         AuthenticatedUser requester = AuthenticatedUser.from(request);
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
         Pageable pageable = PageableRequest.of(
                 page,
