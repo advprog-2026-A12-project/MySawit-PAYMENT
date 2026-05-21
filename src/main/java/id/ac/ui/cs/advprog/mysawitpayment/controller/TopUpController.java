@@ -120,7 +120,7 @@ public class TopUpController {
     @PostMapping("/callback")
     public Map<String, String> handleXenditCallback(
             @RequestHeader(value = "x-callback-token", required = false) String callbackToken,
-            @RequestBody XenditCallbackRequest request
+            @Valid @RequestBody XenditCallbackRequest request
     ) {
         topUpService.handleXenditCallback(callbackToken, request);
         return Map.of("status", "success");
