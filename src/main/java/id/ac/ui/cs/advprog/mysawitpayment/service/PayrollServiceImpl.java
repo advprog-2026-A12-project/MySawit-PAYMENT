@@ -240,7 +240,7 @@ public class PayrollServiceImpl implements PayrollService {
         };
 
         return String.format(
-                "%s: %s kg × %s SD/kg × 90%% = %s SD",
+                "%s: %s kg x %s SD/kg x 90%% = %s SD",
                 payrollType,
                 kilogram,
                 ratePerKg,
