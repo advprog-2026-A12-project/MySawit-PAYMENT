@@ -324,7 +324,7 @@ class TopUpServiceImplTest {
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
-        verify(paymentTransactionRepository, never()).findById(any());
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
     }
 
     @Test
@@ -335,20 +335,86 @@ class TopUpServiceImplTest {
                 .isInstanceOf(ForbiddenException.class)
                 .hasMessage("Invalid Xendit callback token");
 
-        verify(paymentTransactionRepository, never()).findById(any());
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldBeTransactional() throws Exception {
+        boolean transactional = TopUpServiceImpl.class
+                .getMethod("handleXenditCallback", String.class, XenditCallbackRequest.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+
+        assertThat(transactional).isTrue();
+    }
+
+    @Test
+    void callbackTransactionLookupShouldUsePessimisticWriteLock() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock = PaymentTransactionRepository.class
+                .getMethod("findByIdForUpdate", UUID.class)
+                .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertThat(lock).isNotNull();
+        assertThat(lock.value()).isEqualTo(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Test
     void handleXenditCallbackShouldThrowWhenTransactionNotFound() {
         UUID transactionId = UUID.randomUUID();
         XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-missing");
         request.setExternalId(transactionId.toString());
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.empty());
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
                 .isInstanceOf(PaymentTransactionNotFoundException.class)
                 .hasMessage("Payment transaction not found");
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenExternalIdIsMissing() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-1");
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("External id is required");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenExternalIdIsInvalidUuid() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-1");
+        request.setExternalId("not-a-uuid");
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("External id must be a valid UUID");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenStatusIsUnsupported() {
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setId("inv-unknown");
+        request.setExternalId(UUID.randomUUID().toString());
+        request.setStatus("WHATEVER");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Unsupported Xendit callback status");
+
+        verify(paymentTransactionRepository, never()).findByIdForUpdate(any());
     }
 
     @Test
@@ -370,8 +436,9 @@ class TopUpServiceImplTest {
         request.setExternalId(transactionId.toString());
         request.setId("inv-1");
         request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
         service.handleXenditCallback("valid-token", request);
 
@@ -390,6 +457,7 @@ class TopUpServiceImplTest {
                 .amountSawitDollar(new BigDecimal("10.00"))
                 .amountIdr(new BigDecimal("100000.00"))
                 .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-paid")
                 .status(PaymentTransactionStatus.PENDING)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
@@ -402,7 +470,7 @@ class TopUpServiceImplTest {
         request.setAmount(new BigDecimal("100000.00"));
         request.setPaidAt(OffsetDateTime.now(ZoneOffset.UTC));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
         service.handleXenditCallback("valid-token", request);
 
@@ -432,6 +500,7 @@ class TopUpServiceImplTest {
                 .amountSawitDollar(new BigDecimal("10.00"))
                 .amountIdr(new BigDecimal("100000.00"))
                 .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-expired")
                 .status(PaymentTransactionStatus.PENDING)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
@@ -441,8 +510,9 @@ class TopUpServiceImplTest {
         request.setId("inv-expired");
         request.setExternalId(transactionId.toString());
         request.setStatus("EXPIRED");
+        request.setAmount(new BigDecimal("100000.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
         service.handleXenditCallback("valid-token", request);
 
@@ -464,6 +534,7 @@ class TopUpServiceImplTest {
                 .amountSawitDollar(new BigDecimal("10.00"))
                 .amountIdr(new BigDecimal("100000.00"))
                 .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-failed")
                 .status(PaymentTransactionStatus.PENDING)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
@@ -473,8 +544,9 @@ class TopUpServiceImplTest {
         request.setId("inv-failed");
         request.setExternalId(transactionId.toString());
         request.setStatus("FAILED");
+        request.setAmount(new BigDecimal("100000.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
         service.handleXenditCallback("valid-token", request);
 
@@ -487,7 +559,7 @@ class TopUpServiceImplTest {
     }
 
     @Test
-    void handleXenditCallbackShouldNotReassignGatewayReferenceIdWhenAlreadyExists() {
+    void handleXenditCallbackShouldThrowWhenGatewayReferenceIdDoesNotMatch() {
         UUID transactionId = UUID.randomUUID();
 
         PaymentTransaction transaction = PaymentTransaction.builder()
@@ -506,18 +578,21 @@ class TopUpServiceImplTest {
         request.setId("new-ref");
         request.setExternalId(transactionId.toString());
         request.setStatus("EXPIRED");
+        request.setAmount(new BigDecimal("100000.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
-        service.handleXenditCallback("valid-token", request);
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Xendit callback id does not match transaction gateway reference id");
 
         assertThat(transaction.getGatewayReferenceId()).isEqualTo("existing-ref");
-        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.EXPIRED);
-        verify(paymentTransactionRepository).save(transaction);
+        assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
+        verify(paymentTransactionRepository, never()).save(transaction);
     }
 
     @Test
-    void handleXenditCallbackShouldSaveEvenWhenStatusIsUnknown() {
+    void handleXenditCallbackShouldThrowWhenAmountDoesNotMatch() {
         UUID transactionId = UUID.randomUUID();
 
         PaymentTransaction transaction = PaymentTransaction.builder()
@@ -526,24 +601,27 @@ class TopUpServiceImplTest {
                 .amountSawitDollar(new BigDecimal("10.00"))
                 .amountIdr(new BigDecimal("100000.00"))
                 .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-paid")
                 .status(PaymentTransactionStatus.PENDING)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         XenditCallbackRequest request = new XenditCallbackRequest();
-        request.setId("inv-unknown");
+        request.setId("inv-paid");
         request.setExternalId(transactionId.toString());
-        request.setStatus("WHATEVER");
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("99999.00"));
 
-        when(paymentTransactionRepository.findById(transactionId)).thenReturn(Optional.of(transaction));
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
-        service.handleXenditCallback("valid-token", request);
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Xendit callback amount does not match transaction amount");
 
         assertThat(transaction.getStatus()).isEqualTo(PaymentTransactionStatus.PENDING);
-        assertThat(transaction.getGatewayReferenceId()).isEqualTo("inv-unknown");
         verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
-        verify(paymentTransactionRepository).save(transaction);
+        verify(paymentTransactionRepository, never()).save(transaction);
     }
 
     @Test
