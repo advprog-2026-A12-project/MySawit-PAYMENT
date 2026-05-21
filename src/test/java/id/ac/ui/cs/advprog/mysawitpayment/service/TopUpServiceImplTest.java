@@ -11,6 +11,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
@@ -483,6 +484,94 @@ class TopUpServiceImplTest {
         when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
 
         service.handleXenditCallback("valid-token", request);
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldReturnImmediatelyWhenAlreadyExpiredAndCallbackExpiredAgain() {
+        UUID transactionId = UUID.randomUUID();
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-expired")
+                .status(PaymentTransactionStatus.EXPIRED)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+        request.setId("inv-expired");
+        request.setStatus("EXPIRED");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldReturnImmediatelyWhenAlreadyFailedAndCallbackFailedAgain() {
+        UUID transactionId = UUID.randomUUID();
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-failed")
+                .status(PaymentTransactionStatus.FAILED)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+        request.setId("inv-failed");
+        request.setStatus("FAILED");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        service.handleXenditCallback("valid-token", request);
+
+        verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
+        verify(paymentTransactionRepository, never()).save(any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldThrowWhenTerminalStatusConflicts() {
+        UUID transactionId = UUID.randomUUID();
+        PaymentTransaction transaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(UUID.randomUUID())
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-conflict")
+                .status(PaymentTransactionStatus.FAILED)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .build();
+
+        XenditCallbackRequest request = new XenditCallbackRequest();
+        request.setExternalId(transactionId.toString());
+        request.setId("inv-conflict");
+        request.setStatus("PAID");
+        request.setAmount(new BigDecimal("100000.00"));
+
+        when(paymentTransactionRepository.findByIdForUpdate(transactionId)).thenReturn(Optional.of(transaction));
+
+        assertThatThrownBy(() -> service.handleXenditCallback("valid-token", request))
+                .isInstanceOf(PaymentTransactionAlreadyProcessedException.class);
 
         verify(walletService, never()).creditWallet(any(), any(), any(), any(), any());
         verify(paymentTransactionRepository, never()).save(any());
