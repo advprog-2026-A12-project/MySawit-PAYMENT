@@ -79,7 +79,11 @@ public class TopUpServiceImpl implements TopUpService {
                 amountIdr
         );
 
-        savedTransaction.assignGatewayReferenceId(invoiceResult.getGatewayReferenceId());
+        savedTransaction.assignGatewayInvoice(
+                invoiceResult.getGatewayReferenceId(),
+                invoiceResult.getPaymentUrl(),
+                invoiceResult.getExpiresAt()
+        );
 
         paymentTransactionRepository.save(savedTransaction);
 
@@ -90,8 +94,8 @@ public class TopUpServiceImpl implements TopUpService {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway(savedTransaction.getPaymentGateway())
                 .status(savedTransaction.getStatus())
-                .paymentUrl(invoiceResult.getPaymentUrl())
-                .expiresAt(invoiceResult.getExpiresAt())
+                .paymentUrl(savedTransaction.getPaymentUrl())
+                .expiresAt(savedTransaction.getExpiresAt())
                 .createdAt(savedTransaction.getCreatedAt())
                 .build();
     }
@@ -264,6 +268,8 @@ public class TopUpServiceImpl implements TopUpService {
                 .amountIdr(paymentTransaction.getAmountIdr())
                 .paymentGateway(paymentTransaction.getPaymentGateway())
                 .status(paymentTransaction.getStatus().name())
+                .paymentUrl(paymentTransaction.getPaymentUrl())
+                .expiresAt(paymentTransaction.getExpiresAt())
                 .createdAt(paymentTransaction.getCreatedAt())
                 .updatedAt(paymentTransaction.getUpdatedAt())
                 .build();
@@ -280,6 +286,8 @@ public class TopUpServiceImpl implements TopUpService {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway(paymentTransaction.getPaymentGateway())
                 .gatewayReferenceId(paymentTransaction.getGatewayReferenceId())
+                .paymentUrl(paymentTransaction.getPaymentUrl())
+                .expiresAt(paymentTransaction.getExpiresAt())
                 .status(paymentTransaction.getStatus())
                 .createdAt(paymentTransaction.getCreatedAt())
                 .updatedAt(paymentTransaction.getUpdatedAt())
