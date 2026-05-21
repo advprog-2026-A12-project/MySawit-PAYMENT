@@ -587,41 +587,58 @@ class WalletServiceImplTest {
 
         verify(request).getUserId();
         verify(walletRepository).findByUserId(userId);
+        verify(walletRepository, never()).insertIfAbsent(any(UUID.class), any(UUID.class));
         verify(walletRepository, never()).save(any(Wallet.class));
         verifyNoInteractions(walletTransactionRepository);
     }
 
     @Test
     void createWalletShouldCreateNewWalletWhenWalletDoesNotExist() {
-        UUID walletId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
         WalletCreationRequest request = mock(WalletCreationRequest.class);
 
-        Wallet savedWallet = Wallet.builder()
-                .id(walletId)
-                .userId(userId)
-                .balance(BigDecimal.ZERO)
-                .build();
-
         when(request.getUserId()).thenReturn(userId);
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
-        when(walletRepository.save(any(Wallet.class))).thenReturn(savedWallet);
+        when(walletRepository.insertIfAbsent(any(UUID.class), eq(userId))).thenReturn(1);
+
+        WalletCreationResponse result = walletService.createWallet(request);
+
+        assertNotNull(result);
+        assertNotNull(result.getWalletId());
+        assertFalse(result.isAlreadyProcessed());
+
+        verify(request).getUserId();
+        verify(walletRepository).findByUserId(userId);
+        verify(walletRepository).insertIfAbsent(result.getWalletId(), userId);
+        verify(walletRepository, never()).save(any(Wallet.class));
+        verifyNoInteractions(walletTransactionRepository);
+    }
+
+    @Test
+    void createWalletShouldReturnExistingWalletWhenConcurrentRequestInsertedFirst() {
+        UUID walletId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        WalletCreationRequest request = mock(WalletCreationRequest.class);
+        Wallet existingWallet = createWallet(walletId, userId);
+
+        when(request.getUserId()).thenReturn(userId);
+        when(walletRepository.findByUserId(userId))
+                .thenReturn(Optional.empty())
+                .thenReturn(Optional.of(existingWallet));
+        when(walletRepository.insertIfAbsent(any(UUID.class), eq(userId))).thenReturn(0);
 
         WalletCreationResponse result = walletService.createWallet(request);
 
         assertNotNull(result);
         assertEquals(walletId, result.getWalletId());
-        assertFalse(result.isAlreadyProcessed());
-
-        ArgumentCaptor<Wallet> walletCaptor = ArgumentCaptor.forClass(Wallet.class);
-        verify(walletRepository).save(walletCaptor.capture());
-
-        Wallet walletToSave = walletCaptor.getValue();
-        assertEquals(userId, walletToSave.getUserId());
+        assertTrue(result.isAlreadyProcessed());
 
         verify(request).getUserId();
-        verify(walletRepository).findByUserId(userId);
+        verify(walletRepository, times(2)).findByUserId(userId);
+        verify(walletRepository).insertIfAbsent(any(UUID.class), eq(userId));
+        verify(walletRepository, never()).save(any(Wallet.class));
         verifyNoInteractions(walletTransactionRepository);
     }
 }
