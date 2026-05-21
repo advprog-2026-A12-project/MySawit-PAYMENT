@@ -20,6 +20,7 @@ import lombok.Builder;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
@@ -85,14 +86,14 @@ public class Payroll {
 
     @PrePersist
     public void prePersist() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
     }
 
     @PreUpdate
     public void preUpdate() {
-        this.updatedAt = OffsetDateTime.now();
+        this.updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public boolean isPending() {
@@ -102,13 +103,13 @@ public class Payroll {
     public void accept(UUID adminId) {
         this.status = PayrollStatus.ACCEPTED;
         this.approvedBy = adminId;
-        this.approvedAt = OffsetDateTime.now();
+        this.approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public void reject(UUID adminId, String reason) {
         this.status = PayrollStatus.REJECTED;
         this.approvedBy = adminId;
-        this.approvedAt = OffsetDateTime.now();
+        this.approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
         this.rejectionReason = reason;
     }
 }

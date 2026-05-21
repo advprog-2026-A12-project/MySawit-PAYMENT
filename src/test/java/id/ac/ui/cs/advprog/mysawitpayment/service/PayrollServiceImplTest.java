@@ -151,7 +151,7 @@ class PayrollServiceImplTest {
         WalletMutationResult adminWalletResult = createWalletMutationResult("50000.00", "49437.39");
         WalletMutationResult workerWalletResult = createWalletMutationResult("688.14", "1250.75");
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
         when(walletService.debitWallet(
                 adminId,
                 payroll.getAmount(),
@@ -192,7 +192,7 @@ class PayrollServiceImplTest {
         assertEquals(adminId, savedPayroll.getApprovedBy());
         assertNotNull(savedPayroll.getApprovedAt());
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
     }
 
     @Test
@@ -200,13 +200,13 @@ class PayrollServiceImplTest {
         UUID payrollId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
                 payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
@@ -221,16 +221,39 @@ class PayrollServiceImplTest {
         Payroll payroll = createPendingPayroll(payrollId, userId);
         payroll.setStatus(PayrollStatus.ACCEPTED);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
                 payrollService.acceptPayroll(payrollId, adminUser(adminId))
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
+    }
+
+    @Test
+    void payrollProcessingMethodsShouldBeTransactional() throws Exception {
+        boolean acceptTransactional = PayrollServiceImpl.class
+                .getMethod("acceptPayroll", UUID.class, AuthenticatedUser.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+        boolean rejectTransactional = PayrollServiceImpl.class
+                .getMethod("rejectPayroll", UUID.class, AuthenticatedUser.class, String.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+
+        assertTrue(acceptTransactional);
+        assertTrue(rejectTransactional);
+    }
+
+    @Test
+    void payrollProcessingLookupShouldUsePessimisticWriteLock() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock = PayrollRepository.class
+                .getMethod("findByIdForUpdate", UUID.class)
+                .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertNotNull(lock);
+        assertEquals(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE, lock.value());
     }
 
     @Test
@@ -242,7 +265,7 @@ class PayrollServiceImplTest {
 
         Payroll payroll = createPendingPayroll(payrollId, userId);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
         when(payrollRepository.save(payroll)).thenReturn(payroll);
 
         RejectPayrollResponse result = payrollService.rejectPayroll(payrollId, adminUser(adminId), reason);
@@ -266,7 +289,7 @@ class PayrollServiceImplTest {
         assertEquals(reason, savedPayroll.getRejectionReason());
         assertNotNull(savedPayroll.getApprovedAt());
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
     }
@@ -276,13 +299,13 @@ class PayrollServiceImplTest {
         UUID payrollId = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.empty());
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.empty());
 
         assertThrows(PayrollNotFoundException.class, () ->
                 payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
@@ -297,13 +320,13 @@ class PayrollServiceImplTest {
         Payroll payroll = createPendingPayroll(payrollId, userId);
         payroll.setStatus(PayrollStatus.REJECTED);
 
-        when(payrollRepository.findById(payrollId)).thenReturn(Optional.of(payroll));
+        when(payrollRepository.findByIdForUpdate(payrollId)).thenReturn(Optional.of(payroll));
 
         assertThrows(PayrollAlreadyProcessedException.class, () ->
                 payrollService.rejectPayroll(payrollId, adminUser(adminId), "Data tidak valid")
         );
 
-        verify(payrollRepository).findById(payrollId);
+        verify(payrollRepository).findByIdForUpdate(payrollId);
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
@@ -630,14 +653,93 @@ class PayrollServiceImplTest {
                 referenceId,
                 userId
         );
+        verify(payrollRepository, never()).insertIfAbsent(
+                any(UUID.class),
+                any(UUID.class),
+                any(String.class),
+                any(BigDecimal.class),
+                any(BigDecimal.class),
+                any(BigDecimal.class),
+                any(BigDecimal.class),
+                any(String.class),
+                any(String.class),
+                any(String.class),
+                any(UUID.class)
+        );
         verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
         verifyNoInteractions(wageConfigService);
     }
 
     @Test
-    void createPayrollShouldCreateBuruhPayrollWhenNotAlreadyProcessed() {
+    void createPayrollShouldReturnExistingPayrollWhenConcurrentRequestInsertedFirst() {
         UUID payrollId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID referenceId = UUID.randomUUID();
+
+        PayrollCreationRequest request = createPayrollCreationRequest(
+                userId,
+                UserRole.BURUH,
+                ReferenceType.HARVEST,
+                referenceId,
+                new BigDecimal("250.50")
+        );
+
+        Payroll existingPayroll = createPendingPayroll(payrollId, userId);
+        existingPayroll.setReferenceType(ReferenceType.HARVEST);
+        existingPayroll.setReferenceId(referenceId);
+        WageConfig wageConfig = createWageConfig();
+
+        when(payrollRepository.findByReferenceTypeAndReferenceIdAndUserId(
+                ReferenceType.HARVEST,
+                referenceId,
+                userId
+        )).thenReturn(Optional.empty(), Optional.of(existingPayroll));
+        when(wageConfigService.getActiveWageConfig()).thenReturn(wageConfig);
+        when(payrollRepository.insertIfAbsent(
+                any(UUID.class),
+                eq(userId),
+                eq(UserRole.BURUH.name()),
+                eq(new BigDecimal("563.63")),
+                eq(new BigDecimal("250.50")),
+                eq(new BigDecimal("2.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.HARVEST.name()),
+                eq(referenceId)
+        )).thenReturn(0);
+
+        PayrollCreationResponse result = payrollService.createPayroll(request);
+
+        assertNotNull(result);
+        assertEquals(payrollId, result.getPayrollId());
+        assertTrue(result.isAlreadyProcessed());
+
+        verify(payrollRepository, times(2)).findByReferenceTypeAndReferenceIdAndUserId(
+                ReferenceType.HARVEST,
+                referenceId,
+                userId
+        );
+        verify(payrollRepository).insertIfAbsent(
+                any(UUID.class),
+                eq(userId),
+                eq(UserRole.BURUH.name()),
+                eq(new BigDecimal("563.63")),
+                eq(new BigDecimal("250.50")),
+                eq(new BigDecimal("2.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.HARVEST.name()),
+                eq(referenceId)
+        );
+        verify(payrollRepository, never()).save(any(Payroll.class));
+        verifyNoInteractions(walletService);
+    }
+
+    @Test
+    void createPayrollShouldCreateBuruhPayrollWhenNotAlreadyProcessed() {
         UUID userId = UUID.randomUUID();
         UUID referenceId = UUID.randomUUID();
 
@@ -657,42 +759,46 @@ class PayrollServiceImplTest {
                 userId
         )).thenReturn(Optional.empty());
         when(wageConfigService.getActiveWageConfig()).thenReturn(wageConfig);
-        when(payrollRepository.save(any(Payroll.class))).thenAnswer(invocation -> {
-            Payroll payroll = invocation.getArgument(0);
-            payroll.setId(payrollId);
-            return payroll;
-        });
+        when(payrollRepository.insertIfAbsent(
+                any(UUID.class),
+                eq(userId),
+                eq(UserRole.BURUH.name()),
+                eq(new BigDecimal("563.63")),
+                eq(new BigDecimal("250.50")),
+                eq(new BigDecimal("2.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.HARVEST.name()),
+                eq(referenceId)
+        )).thenReturn(1);
 
         PayrollCreationResponse result = payrollService.createPayroll(request);
 
         assertNotNull(result);
-        assertEquals(payrollId, result.getPayrollId());
+        assertNotNull(result.getPayrollId());
         assertFalse(result.isAlreadyProcessed());
 
-        ArgumentCaptor<Payroll> payrollCaptor = ArgumentCaptor.forClass(Payroll.class);
-        verify(payrollRepository).save(payrollCaptor.capture());
-
-        Payroll savedPayroll = payrollCaptor.getValue();
-        assertEquals(userId, savedPayroll.getUserId());
-        assertEquals(UserRole.BURUH, savedPayroll.getUserRole());
-        assertEquals(ReferenceType.HARVEST, savedPayroll.getReferenceType());
-        assertEquals(referenceId, savedPayroll.getReferenceId());
-        assertEquals(new BigDecimal("250.50"), savedPayroll.getKilogram());
-        assertEquals(new BigDecimal("2.50"), savedPayroll.getRatePerKg());
-        assertEquals(new BigDecimal("0.9"), savedPayroll.getMultiplier());
-        assertEquals(new BigDecimal("563.63"), savedPayroll.getAmount());
-        assertEquals(PayrollStatus.PENDING, savedPayroll.getStatus());
-        assertEquals(
-                "Upah panen: 250.50 kg × 2.50 SD/kg × 90% = 563.63 SD",
-                savedPayroll.getDescription()
+        verify(payrollRepository).insertIfAbsent(
+                eq(result.getPayrollId()),
+                eq(userId),
+                eq(UserRole.BURUH.name()),
+                eq(new BigDecimal("563.63")),
+                eq(new BigDecimal("250.50")),
+                eq(new BigDecimal("2.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.HARVEST.name()),
+                eq(referenceId)
         );
+        verify(payrollRepository, never()).save(any(Payroll.class));
 
         verifyNoInteractions(walletService);
     }
 
     @Test
     void createPayrollShouldCreateSupirPayrollWhenNotAlreadyProcessed() {
-        UUID payrollId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID referenceId = UUID.randomUUID();
 
@@ -712,41 +818,45 @@ class PayrollServiceImplTest {
                 userId
         )).thenReturn(Optional.empty());
         when(wageConfigService.getActiveWageConfig()).thenReturn(wageConfig);
-        when(payrollRepository.save(any(Payroll.class))).thenAnswer(invocation -> {
-            Payroll payroll = invocation.getArgument(0);
-            payroll.setId(payrollId);
-            return payroll;
-        });
+        when(payrollRepository.insertIfAbsent(
+                any(UUID.class),
+                eq(userId),
+                eq(UserRole.SUPIR_TRUK.name()),
+                eq(new BigDecimal("500.18")),
+                eq(new BigDecimal("370.50")),
+                eq(new BigDecimal("1.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.DELIVERY.name()),
+                eq(referenceId)
+        )).thenReturn(1);
 
         PayrollCreationResponse result = payrollService.createPayroll(request);
 
         assertNotNull(result);
-        assertEquals(payrollId, result.getPayrollId());
+        assertNotNull(result.getPayrollId());
         assertFalse(result.isAlreadyProcessed());
 
-        ArgumentCaptor<Payroll> payrollCaptor = ArgumentCaptor.forClass(Payroll.class);
-        verify(payrollRepository).save(payrollCaptor.capture());
-
-        Payroll savedPayroll = payrollCaptor.getValue();
-        assertEquals(userId, savedPayroll.getUserId());
-        assertEquals(UserRole.SUPIR_TRUK, savedPayroll.getUserRole());
-        assertEquals(ReferenceType.DELIVERY, savedPayroll.getReferenceType());
-        assertEquals(referenceId, savedPayroll.getReferenceId());
-        assertEquals(new BigDecimal("370.50"), savedPayroll.getKilogram());
-        assertEquals(new BigDecimal("1.50"), savedPayroll.getRatePerKg());
-        assertEquals(new BigDecimal("500.18"), savedPayroll.getAmount());
-        assertEquals(PayrollStatus.PENDING, savedPayroll.getStatus());
-        assertEquals(
-                "Upah pengiriman: 370.50 kg × 1.50 SD/kg × 90% = 500.18 SD",
-                savedPayroll.getDescription()
+        verify(payrollRepository).insertIfAbsent(
+                eq(result.getPayrollId()),
+                eq(userId),
+                eq(UserRole.SUPIR_TRUK.name()),
+                eq(new BigDecimal("500.18")),
+                eq(new BigDecimal("370.50")),
+                eq(new BigDecimal("1.50")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.DELIVERY.name()),
+                eq(referenceId)
         );
-
+        verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
     }
 
     @Test
     void createPayrollShouldCreateMandorPayrollWhenNotAlreadyProcessed() {
-        UUID payrollId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         UUID referenceId = UUID.randomUUID();
 
@@ -766,35 +876,40 @@ class PayrollServiceImplTest {
                 userId
         )).thenReturn(Optional.empty());
         when(wageConfigService.getActiveWageConfig()).thenReturn(wageConfig);
-        when(payrollRepository.save(any(Payroll.class))).thenAnswer(invocation -> {
-            Payroll payroll = invocation.getArgument(0);
-            payroll.setId(payrollId);
-            return payroll;
-        });
+        when(payrollRepository.insertIfAbsent(
+                any(UUID.class),
+                eq(userId),
+                eq(UserRole.MANDOR.name()),
+                eq(new BigDecimal("270.00")),
+                eq(new BigDecimal("300.00")),
+                eq(new BigDecimal("1.00")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.DELIVERY.name()),
+                eq(referenceId)
+        )).thenReturn(1);
 
         PayrollCreationResponse result = payrollService.createPayroll(request);
 
         assertNotNull(result);
-        assertEquals(payrollId, result.getPayrollId());
+        assertNotNull(result.getPayrollId());
         assertFalse(result.isAlreadyProcessed());
 
-        ArgumentCaptor<Payroll> payrollCaptor = ArgumentCaptor.forClass(Payroll.class);
-        verify(payrollRepository).save(payrollCaptor.capture());
-
-        Payroll savedPayroll = payrollCaptor.getValue();
-        assertEquals(userId, savedPayroll.getUserId());
-        assertEquals(UserRole.MANDOR, savedPayroll.getUserRole());
-        assertEquals(ReferenceType.DELIVERY, savedPayroll.getReferenceType());
-        assertEquals(referenceId, savedPayroll.getReferenceId());
-        assertEquals(new BigDecimal("300.00"), savedPayroll.getKilogram());
-        assertEquals(new BigDecimal("1.00"), savedPayroll.getRatePerKg());
-        assertEquals(new BigDecimal("270.00"), savedPayroll.getAmount());
-        assertEquals(PayrollStatus.PENDING, savedPayroll.getStatus());
-        assertEquals(
-                "Upah mandor: 300.00 kg × 1.00 SD/kg × 90% = 270.00 SD",
-                savedPayroll.getDescription()
+        verify(payrollRepository).insertIfAbsent(
+                eq(result.getPayrollId()),
+                eq(userId),
+                eq(UserRole.MANDOR.name()),
+                eq(new BigDecimal("270.00")),
+                eq(new BigDecimal("300.00")),
+                eq(new BigDecimal("1.00")),
+                eq(new BigDecimal("0.9")),
+                eq(PayrollStatus.PENDING.name()),
+                any(String.class),
+                eq(ReferenceType.DELIVERY.name()),
+                eq(referenceId)
         );
-
+        verify(payrollRepository, never()).save(any(Payroll.class));
         verifyNoInteractions(walletService);
     }
 

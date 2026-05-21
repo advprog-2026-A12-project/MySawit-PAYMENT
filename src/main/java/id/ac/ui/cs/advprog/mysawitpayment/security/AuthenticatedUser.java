@@ -11,7 +11,15 @@ public record AuthenticatedUser(UUID id, UserRole role) {
         String userId = (String) request.getAttribute("userId");
         String userRole = (String) request.getAttribute("userRole");
 
-        return new AuthenticatedUser(UUID.fromString(userId), UserRole.valueOf(userRole));
+        if (userId == null || userRole == null) {
+            throw new IllegalArgumentException("Authenticated user claims are required");
+        }
+
+        try {
+            return new AuthenticatedUser(UUID.fromString(userId), UserRole.valueOf(userRole));
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Authenticated user claims are invalid", exception);
+        }
     }
 
     public boolean isAdmin() {

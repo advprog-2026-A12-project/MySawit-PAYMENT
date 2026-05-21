@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.json.JsonTest;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +29,7 @@ class HistoryWageConfigResponseTest {
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
                         .build())
-                .effectiveFrom(OffsetDateTime.now())
+                .effectiveFrom(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         String json = objectMapper.writeValueAsString(response);
@@ -44,7 +45,7 @@ class HistoryWageConfigResponseTest {
     void shouldSerializeAllFieldsCorrectly() throws Exception {
         UUID id = UUID.randomUUID();
         UUID adminId = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         HistoryWageConfigResponse response = HistoryWageConfigResponse.builder()
                 .id(id)

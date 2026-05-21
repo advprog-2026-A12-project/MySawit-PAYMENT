@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,7 +88,7 @@ class PayrollControllerTest {
         response.setStatus("PENDING");
         response.setReferenceType("HARVEST");
         response.setDescription("Test payroll");
-        response.setCreatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -103,7 +104,7 @@ class PayrollControllerTest {
         response.setReferenceType("HARVEST");
         response.setReferenceId(UUID.randomUUID());
         response.setDescription("Test payroll");
-        response.setCreatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -122,8 +123,8 @@ class PayrollControllerTest {
         response.setReferenceId(UUID.randomUUID());
         response.setApprovedBy(mockApprovedByResponse());
         response.setApprovedAt(null);
-        response.setCreatedAt(OffsetDateTime.now());
-        response.setUpdatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        response.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -146,7 +147,7 @@ class PayrollControllerTest {
         response.setAmount(BigDecimal.valueOf(100000));
         response.setStatus("ACCEPTED");
         response.setApprovedBy(mockApprovedByResponse());
-        response.setApprovedAt(OffsetDateTime.now());
+        response.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         response.setDisbursement(disbursement);
         return response;
     }
@@ -159,7 +160,7 @@ class PayrollControllerTest {
         response.setStatus("REJECTED");
         response.setRejectionReason("Invalid data");
         response.setApprovedBy(mockApprovedByResponse());
-        response.setApprovedAt(OffsetDateTime.now());
+        response.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -222,6 +223,20 @@ class PayrollControllerTest {
     }
 
     @Test
+    void getAllPayrollsShouldRejectInvalidDateRange() throws Exception {
+        mockMvc.perform(get("/api/v1/payrolls")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "ADMIN")
+                        .param("dateFrom", "2026-05-21")
+                        .param("dateTo", "2026-05-20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("dateFrom must be before or equal to dateTo"));
+
+        verify(payrollService, never()).getAllPayrolls(any(AuthenticatedUser.class), any(), any());
+    }
+
+    @Test
     void getMyPayrollsSuccess() throws Exception {
         UUID userId = UUID.randomUUID();
 
@@ -257,6 +272,20 @@ class PayrollControllerTest {
         assertEquals("2026-05-01T00:00Z", filterCaptor.getValue().dateFrom().toString());
         assertEquals("2026-05-21T00:00Z", filterCaptor.getValue().dateTo().toString());
         assertEquals("amount: ASC", pageableCaptor.getValue().getSort().toString());
+    }
+
+    @Test
+    void getMyPayrollsShouldRejectInvalidDateRange() throws Exception {
+        mockMvc.perform(get("/api/v1/payrolls/me")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .requestAttr("userRole", "BURUH")
+                        .param("dateFrom", "2026-05-21")
+                        .param("dateTo", "2026-05-20"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("dateFrom must be before or equal to dateTo"));
+
+        verify(payrollService, never()).getMyPayrolls(any(AuthenticatedUser.class), any(), any());
     }
 
     @Test

@@ -165,6 +165,8 @@ class TopUpControllerTest {
                 .amountIdr(new BigDecimal("150000.00"))
                 .paymentGateway("XENDIT")
                 .status("SUCCESS")
+                .paymentUrl("https://pay.xendit.co/inv-history")
+                .expiresAt(now.plusHours(1))
                 .createdAt(now.minusHours(1))
                 .updatedAt(now)
                 .build();
@@ -194,6 +196,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.content[0].amountIdr").value(150000.00))
                 .andExpect(jsonPath("$.data.content[0].paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.content[0].status").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.content[0].paymentUrl").value("https://pay.xendit.co/inv-history"))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
@@ -223,6 +226,8 @@ class TopUpControllerTest {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway("XENDIT")
                 .gatewayReferenceId("inv-123")
+                .paymentUrl("https://pay.xendit.co/inv-123")
+                .expiresAt(updatedAt.plusHours(1))
                 .status(PaymentTransactionStatus.SUCCESS)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
@@ -244,6 +249,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.exchangeRate").value("1 SD = Rp 10,000"))
                 .andExpect(jsonPath("$.data.paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.gatewayReferenceId").value("inv-123"))
+                .andExpect(jsonPath("$.data.paymentUrl").value("https://pay.xendit.co/inv-123"))
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"));
 
         verify(topUpService).getTopUpDetail(transactionId, admin);
@@ -321,5 +327,40 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.status").value("success"));
 
         verify(topUpService).handleXenditCallback(eq("callback-token"), any(XenditCallbackRequest.class));
+    }
+
+    @Test
+    void handleXenditCallbackShouldRejectMissingRequiredFields() throws Exception {
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldRejectUnsupportedStatus() throws Exception {
+        String requestBody = """
+                {
+                  "id": "inv-123",
+                  "external_id": "2ff29187-c73d-4a9e-8060-f206e46a505a",
+                  "status": "PENDING",
+                  "amount": 100000
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
     }
 }

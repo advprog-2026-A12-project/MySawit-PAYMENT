@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 final class ErrorResponseWriter {
 
@@ -27,7 +28,7 @@ final class ErrorResponseWriter {
                 .status("error")
                 .message(message)
                 .data(null)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         response.getWriter().write(OBJECT_MAPPER.writeValueAsString(body));

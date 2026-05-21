@@ -52,6 +52,12 @@ public class PaymentTransaction {
     @Column(name = "gateway_reference_id", length = 255)
     private String gatewayReferenceId;
 
+    @Column(name = "payment_url", length = 2048)
+    private String paymentUrl;
+
+    @Column(name = "expires_at")
+    private OffsetDateTime expiresAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "gateway_callback_payload")
     private Map<String, Object> gatewayCallbackPayload;
@@ -105,6 +111,12 @@ public class PaymentTransaction {
             throw new GatewayReferenceAlreadyAssignedException();
         }
         this.gatewayReferenceId = gatewayReferenceId;
+    }
+
+    public void assignGatewayInvoice(String gatewayReferenceId, String paymentUrl, OffsetDateTime expiresAt) {
+        assignGatewayReferenceId(gatewayReferenceId);
+        this.paymentUrl = paymentUrl;
+        this.expiresAt = expiresAt;
     }
 
     private void ensurePending() {

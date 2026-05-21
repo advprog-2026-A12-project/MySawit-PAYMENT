@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping("/api/v1/wage-configs")
@@ -39,7 +40,7 @@ public class WageConfigController {
                 .status("success")
                 .message("Active wage config retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -56,7 +57,7 @@ public class WageConfigController {
                 .status("success")
                 .message("Wage config updated successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -86,7 +87,7 @@ public class WageConfigController {
                 .status("success")
                 .message("Wage config history retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }

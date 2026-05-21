@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CurrentWageConfigResponse
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ActiveWageConfigNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.WageConfigConflictException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WageConfigRepository;
@@ -18,6 +19,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -65,7 +69,7 @@ class WageConfigServiceImplTest {
     @BeforeEach
     void setUp() {
         adminId = UUID.randomUUID();
-        now = OffsetDateTime.now();
+        now = OffsetDateTime.now(ZoneOffset.UTC);
 
         activeConfig = WageConfig.builder()
                 .id(UUID.randomUUID())
@@ -143,7 +147,7 @@ class WageConfigServiceImplTest {
                 .createdAt(now.minusDays(1))
                 .build();
 
-        OffsetDateTime newTime = OffsetDateTime.now();
+        OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC);
 
         WageConfig savedNewConfig = WageConfig.builder()
                 .id(UUID.randomUUID())
@@ -156,7 +160,7 @@ class WageConfigServiceImplTest {
                 .createdAt(newTime)
                 .build();
 
-        when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.of(previousConfig));
+        when(wageConfigRepository.findActiveForUpdate()).thenReturn(Optional.of(previousConfig));
         when(wageConfigRepository.saveAndFlush(previousConfig)).thenReturn(previousConfig);
         when(wageConfigRepository.save(any(WageConfig.class))).thenReturn(savedNewConfig);
 
@@ -201,7 +205,7 @@ class WageConfigServiceImplTest {
         request.setUpahSupirPerKg(new BigDecimal("3.00"));
         request.setUpahMandorPerKg(new BigDecimal("2.00"));
 
-        OffsetDateTime newTime = OffsetDateTime.now();
+        OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC);
 
         WageConfig savedNewConfig = WageConfig.builder()
                 .id(UUID.randomUUID())
@@ -214,7 +218,7 @@ class WageConfigServiceImplTest {
                 .createdAt(newTime)
                 .build();
 
-        when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
+        when(wageConfigRepository.findActiveForUpdate()).thenReturn(Optional.empty());
         when(wageConfigRepository.save(any(WageConfig.class))).thenReturn(savedNewConfig);
 
         CreateWageConfigResponse response = wageConfigService.createWageConfig(request, adminRequester());
@@ -244,6 +248,63 @@ class WageConfigServiceImplTest {
 
         verify(authorizationService).requireWageConfigManager(requester);
         verifyNoInteractions(wageConfigRepository);
+    }
+
+    @Test
+    void createWageConfigShouldUseSerializableTransactionIsolation() throws Exception {
+        org.springframework.transaction.annotation.Transactional transactional = WageConfigServiceImpl.class
+                .getMethod("createWageConfig", CreateWageConfigRequest.class, AuthenticatedUser.class)
+                .getAnnotation(org.springframework.transaction.annotation.Transactional.class);
+
+        assertNotNull(transactional);
+        assertEquals(org.springframework.transaction.annotation.Isolation.SERIALIZABLE, transactional.isolation());
+    }
+
+    @Test
+    void activeConfigLookupShouldUsePessimisticWriteLock() throws Exception {
+        org.springframework.data.jpa.repository.Lock lock = WageConfigRepository.class
+                .getMethod("findActiveForUpdate")
+                .getAnnotation(org.springframework.data.jpa.repository.Lock.class);
+
+        assertNotNull(lock);
+        assertEquals(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE, lock.value());
+    }
+
+    @Test
+    void createWageConfigShouldMapUniqueConflictToBusinessConflict() {
+        CreateWageConfigRequest request = new CreateWageConfigRequest();
+        request.setUpahBuruhPerKg(new BigDecimal("4.00"));
+        request.setUpahSupirPerKg(new BigDecimal("3.00"));
+        request.setUpahMandorPerKg(new BigDecimal("2.00"));
+
+        when(wageConfigRepository.findActiveForUpdate()).thenReturn(Optional.empty());
+        when(wageConfigRepository.save(any(WageConfig.class)))
+                .thenThrow(new DataIntegrityViolationException("active unique conflict"));
+
+        WageConfigConflictException exception = assertThrows(
+                WageConfigConflictException.class,
+                () -> wageConfigService.createWageConfig(request, adminRequester())
+        );
+
+        assertEquals("Active wage config was updated concurrently", exception.getMessage());
+    }
+
+    @Test
+    void createWageConfigShouldMapLockConflictToBusinessConflict() {
+        CreateWageConfigRequest request = new CreateWageConfigRequest();
+        request.setUpahBuruhPerKg(new BigDecimal("4.00"));
+        request.setUpahSupirPerKg(new BigDecimal("3.00"));
+        request.setUpahMandorPerKg(new BigDecimal("2.00"));
+
+        when(wageConfigRepository.findActiveForUpdate())
+                .thenThrow(new CannotAcquireLockException("active config locked"));
+
+        WageConfigConflictException exception = assertThrows(
+                WageConfigConflictException.class,
+                () -> wageConfigService.createWageConfig(request, adminRequester())
+        );
+
+        assertEquals("Active wage config was updated concurrently", exception.getMessage());
     }
 
     @Test

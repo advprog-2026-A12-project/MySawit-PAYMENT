@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,7 +58,7 @@ class WageConfigControllerTest {
     @Test
     void getActiveWageConfigShouldReturnSuccessWhenRoleIsAdmin() throws Exception {
         UUID adminId = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         CurrentWageConfigResponse response = CurrentWageConfigResponse.builder()
                 .id(UUID.randomUUID())
@@ -98,7 +99,7 @@ class WageConfigControllerTest {
     void createNewWageConfigShouldReturnSuccessWhenRequestValidAndRoleIsAdmin() throws Exception {
         UUID adminId = UUID.randomUUID();
         UUID configId = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         String requestBody = """
                 {
@@ -177,7 +178,7 @@ class WageConfigControllerTest {
 
     @Test
     void getWageConfigHistoryShouldReturnSuccessWhenRoleIsAdmin() throws Exception {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         HistoryWageConfigResponse history1 = HistoryWageConfigResponse.builder()
                 .id(UUID.randomUUID())

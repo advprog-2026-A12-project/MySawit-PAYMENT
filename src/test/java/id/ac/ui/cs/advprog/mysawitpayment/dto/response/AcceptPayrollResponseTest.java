@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,7 +27,7 @@ class AcceptPayrollResponseTest {
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
 
-        OffsetDateTime approvedAt = OffsetDateTime.now();
+        OffsetDateTime approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
 
         PayrollWalletResponse adminWallet = new PayrollWalletResponse();
         adminWallet.setBalanceBefore(BigDecimal.valueOf(50000.00));

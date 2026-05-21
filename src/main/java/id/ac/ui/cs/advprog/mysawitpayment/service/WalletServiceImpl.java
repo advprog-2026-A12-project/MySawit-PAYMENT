@@ -72,7 +72,15 @@ public class WalletServiceImpl implements WalletService {
             String description
     ) {
 
-        Wallet wallet = findWalletOrThrow(userId);
+        Wallet wallet = findWalletForUpdateOrThrow(userId);
+        var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                referenceType,
+                referenceId,
+                TransactionType.CREDIT
+        );
+        if (existingTransaction.isPresent()) {
+            return mapToWalletMutationResult(existingTransaction.get());
+        }
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.credit(amount);
@@ -107,7 +115,15 @@ public class WalletServiceImpl implements WalletService {
             UUID referenceId,
             String description
     ) {
-        Wallet wallet = findWalletOrThrow(userId);
+        Wallet wallet = findWalletForUpdateOrThrow(userId);
+        var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
+                referenceType,
+                referenceId,
+                TransactionType.DEBIT
+        );
+        if (existingTransaction.isPresent()) {
+            return mapToWalletMutationResult(existingTransaction.get());
+        }
 
         BigDecimal balanceBefore = wallet.getBalance();
         wallet.debit(amount);
@@ -144,14 +160,19 @@ public class WalletServiceImpl implements WalletService {
                         .alreadyProcessed(true)
                         .build())
                 .orElseGet(() -> {
-                    Wallet wallet = Wallet.builder()
-                            .userId(userId)
-                            .build();
+                    UUID walletId = UUID.randomUUID();
+                    int insertedRows = walletRepository.insertIfAbsent(walletId, userId);
 
-                    Wallet savedWallet = walletRepository.save(wallet);
+                    if (insertedRows == 0) {
+                        Wallet existingWallet = findWalletOrThrow(userId);
+                        return WalletCreationResponse.builder()
+                                .walletId(existingWallet.getId())
+                                .alreadyProcessed(true)
+                                .build();
+                    }
 
                     return WalletCreationResponse.builder()
-                            .walletId(savedWallet.getId())
+                            .walletId(walletId)
                             .alreadyProcessed(false)
                             .build();
                 });
@@ -160,6 +181,18 @@ public class WalletServiceImpl implements WalletService {
     private Wallet findWalletOrThrow(UUID userId) {
         return walletRepository.findByUserId(userId)
                 .orElseThrow(WalletNotFoundException::new);
+    }
+
+    private Wallet findWalletForUpdateOrThrow(UUID userId) {
+        return walletRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(WalletNotFoundException::new);
+    }
+
+    private WalletMutationResult mapToWalletMutationResult(WalletTransaction walletTransaction) {
+        return WalletMutationResult.builder()
+                .balanceBefore(walletTransaction.getBalanceBefore())
+                .balanceAfter(walletTransaction.getBalanceAfter())
+                .build();
     }
 
     private Specification<WalletTransaction> walletTransactionSpec(

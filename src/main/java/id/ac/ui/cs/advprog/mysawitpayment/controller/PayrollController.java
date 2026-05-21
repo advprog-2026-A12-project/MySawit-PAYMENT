@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping("/api/v1/payrolls")
@@ -68,6 +69,7 @@ public class PayrollController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
         Pageable pageable = PageableRequest.of(
                 page,
@@ -104,7 +106,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payrolls retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -118,6 +120,7 @@ public class PayrollController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
             @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
         Pageable pageable = PageableRequest.of(
                 page,
@@ -154,7 +157,7 @@ public class PayrollController {
                 .status("success")
                 .message("My payrolls retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -173,7 +176,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll detail retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -190,7 +193,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll accepted and disbursed successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -212,7 +215,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll rejected")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }
