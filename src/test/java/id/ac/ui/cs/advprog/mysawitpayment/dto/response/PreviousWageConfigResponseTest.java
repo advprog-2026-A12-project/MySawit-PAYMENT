@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -13,7 +14,7 @@ class PreviousWageConfigResponseTest {
     @Test
     void shouldBuildCorrectly() {
         UUID id = UUID.randomUUID();
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         PreviousWageConfigResponse response = PreviousWageConfigResponse.builder()
                 .id(id)

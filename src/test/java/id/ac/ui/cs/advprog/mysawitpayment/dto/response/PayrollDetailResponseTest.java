@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,9 +35,9 @@ class PayrollDetailResponseTest {
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
 
-        OffsetDateTime approvedAt = OffsetDateTime.now();
-        OffsetDateTime createdAt = OffsetDateTime.now();
-        OffsetDateTime updatedAt = OffsetDateTime.now();
+        OffsetDateTime approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
 
         response.setId(id);
         response.setUser(user);

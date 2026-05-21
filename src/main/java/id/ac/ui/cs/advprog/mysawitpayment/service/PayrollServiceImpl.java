@@ -35,6 +35,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -114,7 +115,7 @@ public class PayrollServiceImpl implements PayrollService {
 
         payroll.setStatus(PayrollStatus.ACCEPTED);
         payroll.setApprovedBy(requester.id());
-        payroll.setApprovedAt(OffsetDateTime.now());
+        payroll.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
 
         Payroll savedPayroll = payrollRepository.save(payroll);
 
@@ -135,7 +136,7 @@ public class PayrollServiceImpl implements PayrollService {
 
         payroll.setStatus(PayrollStatus.REJECTED);
         payroll.setApprovedBy(requester.id());
-        payroll.setApprovedAt(OffsetDateTime.now());
+        payroll.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         payroll.setRejectionReason(reason);
 
         return mapToRejectResponse(payrollRepository.save(payroll));

@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -87,7 +88,7 @@ class PayrollControllerTest {
         response.setStatus("PENDING");
         response.setReferenceType("HARVEST");
         response.setDescription("Test payroll");
-        response.setCreatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -103,7 +104,7 @@ class PayrollControllerTest {
         response.setReferenceType("HARVEST");
         response.setReferenceId(UUID.randomUUID());
         response.setDescription("Test payroll");
-        response.setCreatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -122,8 +123,8 @@ class PayrollControllerTest {
         response.setReferenceId(UUID.randomUUID());
         response.setApprovedBy(mockApprovedByResponse());
         response.setApprovedAt(null);
-        response.setCreatedAt(OffsetDateTime.now());
-        response.setUpdatedAt(OffsetDateTime.now());
+        response.setCreatedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        response.setUpdatedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 
@@ -146,7 +147,7 @@ class PayrollControllerTest {
         response.setAmount(BigDecimal.valueOf(100000));
         response.setStatus("ACCEPTED");
         response.setApprovedBy(mockApprovedByResponse());
-        response.setApprovedAt(OffsetDateTime.now());
+        response.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         response.setDisbursement(disbursement);
         return response;
     }
@@ -159,7 +160,7 @@ class PayrollControllerTest {
         response.setStatus("REJECTED");
         response.setRejectionReason("Invalid data");
         response.setApprovedBy(mockApprovedByResponse());
-        response.setApprovedAt(OffsetDateTime.now());
+        response.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         return response;
     }
 

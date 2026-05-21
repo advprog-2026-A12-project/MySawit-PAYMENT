@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -225,6 +226,6 @@ class WalletTransactionTest {
 
         assertNotNull(transaction.getId());
         assertNotNull(transaction.getCreatedAt());
-        assertTrue(transaction.getCreatedAt().isBefore(OffsetDateTime.now().plusSeconds(1)));
+        assertTrue(transaction.getCreatedAt().isBefore(OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(1)));
     }
 }

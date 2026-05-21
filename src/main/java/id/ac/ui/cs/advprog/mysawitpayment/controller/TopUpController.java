@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping("/api/v1/topup")
@@ -55,7 +56,7 @@ public class TopUpController {
                 .status("success")
                 .message("Top-up created successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -95,7 +96,7 @@ public class TopUpController {
                 .status("success")
                 .message("Top-up history retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -113,7 +114,7 @@ public class TopUpController {
                 .status("success")
                 .message("Top-up detail retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 

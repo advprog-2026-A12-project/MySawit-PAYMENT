@@ -28,6 +28,7 @@ import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -68,7 +69,7 @@ class WageConfigServiceImplTest {
     @BeforeEach
     void setUp() {
         adminId = UUID.randomUUID();
-        now = OffsetDateTime.now();
+        now = OffsetDateTime.now(ZoneOffset.UTC);
 
         activeConfig = WageConfig.builder()
                 .id(UUID.randomUUID())
@@ -146,7 +147,7 @@ class WageConfigServiceImplTest {
                 .createdAt(now.minusDays(1))
                 .build();
 
-        OffsetDateTime newTime = OffsetDateTime.now();
+        OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC);
 
         WageConfig savedNewConfig = WageConfig.builder()
                 .id(UUID.randomUUID())
@@ -204,7 +205,7 @@ class WageConfigServiceImplTest {
         request.setUpahSupirPerKg(new BigDecimal("3.00"));
         request.setUpahMandorPerKg(new BigDecimal("2.00"));
 
-        OffsetDateTime newTime = OffsetDateTime.now();
+        OffsetDateTime newTime = OffsetDateTime.now(ZoneOffset.UTC);
 
         WageConfig savedNewConfig = WageConfig.builder()
                 .id(UUID.randomUUID())

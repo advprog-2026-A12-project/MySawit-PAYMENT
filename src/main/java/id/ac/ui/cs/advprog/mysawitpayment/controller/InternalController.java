@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 
 @RestController
@@ -37,7 +38,7 @@ public class InternalController {
                 .status("success")
                 .message(message)
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -55,7 +56,7 @@ public class InternalController {
                 .status("success")
                 .message(message)
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -94,7 +95,7 @@ public class GlobalExceptionHandler {
                 .status("error")
                 .message(message)
                 .data(data)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         return ResponseEntity.status(status).body(response);
