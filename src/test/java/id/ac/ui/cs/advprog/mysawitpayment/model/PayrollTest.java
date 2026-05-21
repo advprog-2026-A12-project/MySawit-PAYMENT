@@ -80,12 +80,9 @@ class PayrollTest {
     }
 
     @Test
-    void testPreUpdateUpdatesTimestamp() throws InterruptedException {
-        payroll.prePersist();
-
-        OffsetDateTime originalUpdatedAt = payroll.getUpdatedAt();
-
-        Thread.sleep(5);
+    void testPreUpdateUpdatesTimestamp() {
+        OffsetDateTime originalUpdatedAt = OffsetDateTime.parse("2026-05-01T00:00:00Z");
+        payroll.setUpdatedAt(originalUpdatedAt);
 
         payroll.preUpdate();
 

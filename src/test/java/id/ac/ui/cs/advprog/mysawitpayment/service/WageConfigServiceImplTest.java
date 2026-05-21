@@ -109,10 +109,12 @@ class WageConfigServiceImplTest {
     void getCurrentWageConfigShouldThrowExceptionWhenNoActiveConfigExists() {
         when(wageConfigRepository.findByIsActiveTrue()).thenReturn(Optional.empty());
 
-        assertThrows(ActiveWageConfigNotFoundException.class,
-                () -> wageConfigService.getCurrentWageConfig(adminRequester()));
+        AuthenticatedUser requester = adminRequester();
 
-        verify(authorizationService).requireWageConfigManager(adminRequester());
+        assertThrows(ActiveWageConfigNotFoundException.class,
+                () -> wageConfigService.getCurrentWageConfig(requester));
+
+        verify(authorizationService).requireWageConfigManager(requester);
         verify(wageConfigRepository).findByIsActiveTrue();
     }
 
@@ -281,9 +283,11 @@ class WageConfigServiceImplTest {
         when(wageConfigRepository.save(any(WageConfig.class)))
                 .thenThrow(new DataIntegrityViolationException("active unique conflict"));
 
+        AuthenticatedUser requester = adminRequester();
+
         WageConfigConflictException exception = assertThrows(
                 WageConfigConflictException.class,
-                () -> wageConfigService.createWageConfig(request, adminRequester())
+                () -> wageConfigService.createWageConfig(request, requester)
         );
 
         assertEquals("Active wage config was updated concurrently", exception.getMessage());
@@ -299,9 +303,11 @@ class WageConfigServiceImplTest {
         when(wageConfigRepository.findActiveForUpdate())
                 .thenThrow(new CannotAcquireLockException("active config locked"));
 
+        AuthenticatedUser requester = adminRequester();
+
         WageConfigConflictException exception = assertThrows(
                 WageConfigConflictException.class,
-                () -> wageConfigService.createWageConfig(request, adminRequester())
+                () -> wageConfigService.createWageConfig(request, requester)
         );
 
         assertEquals("Active wage config was updated concurrently", exception.getMessage());

@@ -131,9 +131,11 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
+        AuthenticatedUser requester = requester(userId, UserRole.BURUH);
+
         assertThrows(
                 WalletNotFoundException.class,
-                () -> walletService.getMyWallet(requester(userId, UserRole.BURUH))
+                () -> walletService.getMyWallet(requester)
         );
 
         verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
@@ -184,12 +186,15 @@ class WalletServiceImplTest {
     @Test
     void getWalletByUserIdShouldThrowWalletNotFoundException() {
         UUID userId = UUID.randomUUID();
+        UUID adminId = UUID.randomUUID();
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
+        AuthenticatedUser requester = requester(adminId, UserRole.ADMIN);
+
         assertThrows(
                 WalletNotFoundException.class,
-                () -> walletService.getWalletByUserId(requester(UUID.randomUUID(), UserRole.ADMIN), userId)
+                () -> walletService.getWalletByUserId(requester, userId)
         );
 
         verify(authorizationService).requireAdminWalletViewer(any(AuthenticatedUser.class));
@@ -204,9 +209,11 @@ class WalletServiceImplTest {
                 .when(authorizationService)
                 .requireAdminWalletViewer(requester);
 
+        UUID targetUserId = UUID.randomUUID();
+
         assertThrows(
                 ForbiddenException.class,
-                () -> walletService.getWalletByUserId(requester, UUID.randomUUID())
+                () -> walletService.getWalletByUserId(requester, targetUserId)
         );
 
         verify(authorizationService).requireAdminWalletViewer(requester);
@@ -406,13 +413,12 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserId(userId)).thenReturn(Optional.empty());
 
+        AuthenticatedUser requester = requester(userId, UserRole.BURUH);
+        WalletTransactionFilter filter = new WalletTransactionFilter(null, null, null);
+
         assertThrows(
                 WalletNotFoundException.class,
-                () -> walletService.getMyTransactions(
-                        requester(userId, UserRole.BURUH),
-                        new WalletTransactionFilter(null, null, null),
-                        pageable
-                )
+                () -> walletService.getMyTransactions(requester, filter, pageable)
         );
 
         verify(authorizationService).requireOwnWalletAccess(any(AuthenticatedUser.class));
@@ -428,13 +434,11 @@ class WalletServiceImplTest {
                 .when(authorizationService)
                 .requireOwnWalletAccess(requester);
 
+        WalletTransactionFilter filter = new WalletTransactionFilter(null, null, null);
+
         assertThrows(
                 ForbiddenException.class,
-                () -> walletService.getMyTransactions(
-                        requester,
-                        new WalletTransactionFilter(null, null, null),
-                        pageable
-                )
+                () -> walletService.getMyTransactions(requester, filter, pageable)
         );
 
         verify(authorizationService).requireOwnWalletAccess(requester);
@@ -493,9 +497,11 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.empty());
 
+        BigDecimal amount = new BigDecimal("500.00");
+
         assertThrows(WalletNotFoundException.class, () -> walletService.creditWallet(
                 userId,
-                new BigDecimal("500.00"),
+                amount,
                 "PAYROLL_DISBURSEMENT",
                 referenceId,
                 "Payroll disbursement"
@@ -590,9 +596,11 @@ class WalletServiceImplTest {
 
         when(walletRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.empty());
 
+        BigDecimal amount = new BigDecimal("500.00");
+
         assertThrows(WalletNotFoundException.class, () -> walletService.debitWallet(
                 userId,
-                new BigDecimal("500.00"),
+                amount,
                 "PAYROLL_DEDUCTION",
                 referenceId,
                 "Payroll deduction"

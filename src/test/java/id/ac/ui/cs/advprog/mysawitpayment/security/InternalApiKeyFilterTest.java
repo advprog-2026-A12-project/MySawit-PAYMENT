@@ -131,4 +131,18 @@ class InternalApiKeyFilterTest {
         assertTrue(response.getContentAsString().contains("Invalid or missing internal API key"));
         verify(chain, never()).doFilter(request, response);
     }
+
+    @Test
+    void internalPathMatcherShouldHandleNullPath() {
+        InternalPathMatcher matcher = new InternalPathMatcher("/api/v1/internal");
+
+        assertEquals(false, matcher.matches(null));
+    }
+
+    @Test
+    void internalPathMatcherShouldKeepConfiguredTrailingSlash() {
+        InternalPathMatcher matcher = new InternalPathMatcher("/api/v1/internal/");
+
+        assertEquals(true, matcher.matches("/api/v1/internal/wallets"));
+    }
 }
