@@ -52,6 +52,12 @@ final class PageableRequest {
         return date == null ? null : date.plusDays(1).atStartOfDay().atOffset(ZoneOffset.UTC);
     }
 
+    static void validateDateRange(LocalDate dateFrom, LocalDate dateTo) {
+        if (dateFrom != null && dateTo != null && dateFrom.isAfter(dateTo)) {
+            throw new IllegalArgumentException("dateFrom must be before or equal to dateTo");
+        }
+    }
+
     private static Sort parseSort(
             String sort,
             Map<String, String> allowedSortFields,
