@@ -38,6 +38,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleConflictShouldReturnConflictForWageConfigRace() {
+        ResponseEntity<ApiResponse<Object>> response =
+                handler.handleConflict(new WageConfigConflictException());
+
+        assertErrorResponse(response, HttpStatus.CONFLICT, "Active wage config was updated concurrently");
+    }
+
+    @Test
     void handleBadRequestShouldReturnBadRequestErrorResponse() {
         ResponseEntity<ApiResponse<Object>> response =
                 handler.handleBadRequest(new InvalidAmountException("Invalid amount"));
