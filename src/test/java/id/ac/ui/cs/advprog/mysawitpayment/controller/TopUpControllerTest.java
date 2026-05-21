@@ -322,4 +322,39 @@ class TopUpControllerTest {
 
         verify(topUpService).handleXenditCallback(eq("callback-token"), any(XenditCallbackRequest.class));
     }
+
+    @Test
+    void handleXenditCallbackShouldRejectMissingRequiredFields() throws Exception {
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldRejectUnsupportedStatus() throws Exception {
+        String requestBody = """
+                {
+                  "id": "inv-123",
+                  "external_id": "2ff29187-c73d-4a9e-8060-f206e46a505a",
+                  "status": "PENDING",
+                  "amount": 100000
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
+    }
 }
