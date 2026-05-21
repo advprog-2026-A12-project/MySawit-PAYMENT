@@ -54,6 +54,7 @@ public class TopUpServiceImpl implements TopUpService {
     private final PaymentAuthorizationService authorizationService;
 
     @Override
+    @Transactional
     public CreateTopUpResponse createTopUp(CreateTopUpRequest request, AuthenticatedUser requester) {
         authorizationService.requireAdmin(requester);
         validateCreateTopUpRequest(request);
