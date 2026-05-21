@@ -91,6 +91,18 @@ class PaymentTransactionTest {
     }
 
     @Test
+    void shouldAssignGatewayInvoiceMetadata() {
+        PaymentTransaction tx = createPendingTransaction();
+        OffsetDateTime expiresAt = OffsetDateTime.now().plusHours(1);
+
+        tx.assignGatewayInvoice("ref-123", "https://pay.xendit.co/ref-123", expiresAt);
+
+        assertThat(tx.getGatewayReferenceId()).isEqualTo("ref-123");
+        assertThat(tx.getPaymentUrl()).isEqualTo("https://pay.xendit.co/ref-123");
+        assertThat(tx.getExpiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
     void shouldThrowWhenAssignGatewayReferenceIdTwice() {
         PaymentTransaction tx = createPendingTransaction();
 

@@ -146,6 +146,8 @@ class TopUpServiceImplTest {
         assertThat(response.getPaymentUrl()).isEqualTo("https://pay.xendit.co/inv-123");
         assertThat(response.getExpiresAt()).isEqualTo(expiresAt);
         assertThat(response.getCreatedAt()).isEqualTo(createdAt);
+        assertThat(firstSaved.getPaymentUrl()).isEqualTo("https://pay.xendit.co/inv-123");
+        assertThat(firstSaved.getExpiresAt()).isEqualTo(expiresAt);
 
         verify(paymentTransactionRepository, times(2)).save(any(PaymentTransaction.class));
         verify(paymentGatewayClient).createTopupInvoice(transactionId, adminId, new BigDecimal("123500.00"));
@@ -273,6 +275,9 @@ class TopUpServiceImplTest {
                 .amountSawitDollar(new BigDecimal("15.00"))
                 .amountIdr(new BigDecimal("150000.00"))
                 .paymentGateway("XENDIT")
+                .gatewayReferenceId("inv-history")
+                .paymentUrl("https://pay.xendit.co/inv-history")
+                .expiresAt(now.plusHours(1))
                 .status(PaymentTransactionStatus.SUCCESS)
                 .createdAt(now.minusHours(1))
                 .updatedAt(now)
@@ -291,6 +296,8 @@ class TopUpServiceImplTest {
         assertThat(item.getAmountIdr()).isEqualByComparingTo("150000.00");
         assertThat(item.getPaymentGateway()).isEqualTo("XENDIT");
         assertThat(item.getStatus()).isEqualTo("SUCCESS");
+        assertThat(item.getPaymentUrl()).isEqualTo("https://pay.xendit.co/inv-history");
+        assertThat(item.getExpiresAt()).isEqualTo(now.plusHours(1));
         assertThat(item.getCreatedAt()).isEqualTo(tx.getCreatedAt());
         assertThat(item.getUpdatedAt()).isEqualTo(tx.getUpdatedAt());
     }
@@ -769,6 +776,8 @@ class TopUpServiceImplTest {
                 .amountIdr(new BigDecimal("200000.00"))
                 .paymentGateway("XENDIT")
                 .gatewayReferenceId("inv-detail")
+                .paymentUrl("https://pay.xendit.co/inv-detail")
+                .expiresAt(updatedAt.plusHours(1))
                 .status(PaymentTransactionStatus.SUCCESS)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
@@ -786,6 +795,8 @@ class TopUpServiceImplTest {
         assertThat(response.getExchangeRate()).isEqualTo("1 SD = Rp 10,000");
         assertThat(response.getPaymentGateway()).isEqualTo("XENDIT");
         assertThat(response.getGatewayReferenceId()).isEqualTo("inv-detail");
+        assertThat(response.getPaymentUrl()).isEqualTo("https://pay.xendit.co/inv-detail");
+        assertThat(response.getExpiresAt()).isEqualTo(updatedAt.plusHours(1));
         assertThat(response.getStatus()).isEqualTo(PaymentTransactionStatus.SUCCESS);
         assertThat(response.getCreatedAt()).isEqualTo(createdAt);
         assertThat(response.getUpdatedAt()).isEqualTo(updatedAt);

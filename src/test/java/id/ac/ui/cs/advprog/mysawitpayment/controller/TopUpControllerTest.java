@@ -165,6 +165,8 @@ class TopUpControllerTest {
                 .amountIdr(new BigDecimal("150000.00"))
                 .paymentGateway("XENDIT")
                 .status("SUCCESS")
+                .paymentUrl("https://pay.xendit.co/inv-history")
+                .expiresAt(now.plusHours(1))
                 .createdAt(now.minusHours(1))
                 .updatedAt(now)
                 .build();
@@ -194,6 +196,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.content[0].amountIdr").value(150000.00))
                 .andExpect(jsonPath("$.data.content[0].paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.content[0].status").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.content[0].paymentUrl").value("https://pay.xendit.co/inv-history"))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
@@ -223,6 +226,8 @@ class TopUpControllerTest {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway("XENDIT")
                 .gatewayReferenceId("inv-123")
+                .paymentUrl("https://pay.xendit.co/inv-123")
+                .expiresAt(updatedAt.plusHours(1))
                 .status(PaymentTransactionStatus.SUCCESS)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
@@ -244,6 +249,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.exchangeRate").value("1 SD = Rp 10,000"))
                 .andExpect(jsonPath("$.data.paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.gatewayReferenceId").value("inv-123"))
+                .andExpect(jsonPath("$.data.paymentUrl").value("https://pay.xendit.co/inv-123"))
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"));
 
         verify(topUpService).getTopUpDetail(transactionId, admin);
