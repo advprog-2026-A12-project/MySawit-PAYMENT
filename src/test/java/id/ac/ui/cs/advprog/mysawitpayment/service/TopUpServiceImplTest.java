@@ -151,6 +151,48 @@ class TopUpServiceImplTest {
     }
 
     @Test
+    void createTopUpShouldBeTransactional() throws Exception {
+        boolean transactional = TopUpServiceImpl.class
+                .getMethod("createTopUp", CreateTopUpRequest.class, AuthenticatedUser.class)
+                .isAnnotationPresent(jakarta.transaction.Transactional.class);
+
+        assertThat(transactional).isTrue();
+    }
+
+    @Test
+    void createTopUpShouldPropagateGatewayFailureBeforeAssigningGatewayReference() {
+        UUID adminId = UUID.randomUUID();
+        UUID transactionId = UUID.randomUUID();
+
+        CreateTopUpRequest request = new CreateTopUpRequest();
+        setField(request, "amountSawitDollar", new BigDecimal("10.00"));
+
+        PaymentTransaction savedTransaction = PaymentTransaction.builder()
+                .id(transactionId)
+                .adminId(adminId)
+                .amountSawitDollar(new BigDecimal("10.00"))
+                .amountIdr(new BigDecimal("100000.00"))
+                .paymentGateway("XENDIT")
+                .status(PaymentTransactionStatus.PENDING)
+                .build();
+
+        when(paymentTransactionRepository.save(any(PaymentTransaction.class))).thenReturn(savedTransaction);
+        when(paymentGatewayClient.createTopupInvoice(
+                eq(transactionId),
+                eq(adminId),
+                eq(new BigDecimal("100000.00"))
+        )).thenThrow(new IllegalStateException("Gateway timeout"));
+
+        assertThatThrownBy(() -> service.createTopUp(request, adminUser(adminId)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("Gateway timeout");
+
+        assertThat(savedTransaction.getGatewayReferenceId()).isNull();
+        verify(paymentTransactionRepository, times(1)).save(any(PaymentTransaction.class));
+        verify(paymentGatewayClient).createTopupInvoice(transactionId, adminId, new BigDecimal("100000.00"));
+    }
+
+    @Test
     void createTopUpShouldThrowWhenRequestIsNull() {
         UUID adminId = UUID.randomUUID();
 
