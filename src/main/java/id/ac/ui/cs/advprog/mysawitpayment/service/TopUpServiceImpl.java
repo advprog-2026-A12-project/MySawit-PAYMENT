@@ -29,7 +29,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -38,6 +40,7 @@ public class TopUpServiceImpl implements TopUpService {
 
     private static final BigDecimal EXCHANGE_RATE = BigDecimal.valueOf(10_000);
     private static final BigDecimal MAX_TOP_UP_AMOUNT = new BigDecimal("100000.00");
+    private static final Set<String> SUPPORTED_XENDIT_CALLBACK_STATUSES = Set.of("PAID", "EXPIRED", "FAILED");
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -104,30 +107,28 @@ public class TopUpServiceImpl implements TopUpService {
 
     @Override
     public void handleXenditCallback(String callbackToken, XenditCallbackRequest request) {
-        if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
-            throw new ForbiddenException("Invalid Xendit callback token");
-        }
+        validateCallbackToken(callbackToken);
 
-        UUID transactionId = UUID.fromString(request.getExternalId());
+        UUID transactionId = parseCallbackTransactionId(request);
+        String callbackStatus = normalizeCallbackStatus(request);
 
         PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId)
                 .orElseThrow(PaymentTransactionNotFoundException::new);
 
-        if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
-            return;
-        }
-
-        if (transaction.getGatewayReferenceId() == null) {
-            transaction.assignGatewayReferenceId(request.getId());
-        }
+        validateCallbackMatchesTransaction(transaction, request);
 
         ObjectMapper mapper = new ObjectMapper();
 
         mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
 
+        @SuppressWarnings("unchecked")
         Map<String, Object> payloadMap = mapper.convertValue(request, Map.class);
 
-        if ("PAID".equalsIgnoreCase(request.getStatus())) {
+        if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
+            return;
+        }
+
+        if ("PAID".equals(callbackStatus)) {
             transaction.markSuccess(payloadMap);
 
             walletService.creditWallet(
@@ -137,9 +138,9 @@ public class TopUpServiceImpl implements TopUpService {
                     transaction.getId(),
                     "Top-up via Xendit"
             );
-        } else if ("EXPIRED".equalsIgnoreCase(request.getStatus())) {
+        } else if ("EXPIRED".equals(callbackStatus)) {
             transaction.markExpired(payloadMap);
-        } else if ("FAILED".equalsIgnoreCase(request.getStatus())) {
+        } else if ("FAILED".equals(callbackStatus)) {
             transaction.markFailed(payloadMap);
         }
 
@@ -167,6 +168,56 @@ public class TopUpServiceImpl implements TopUpService {
 
         if (request.getAmountSawitDollar().compareTo(MAX_TOP_UP_AMOUNT) > 0) {
             throw new InvalidAmountException("Amount SawitDollar must be at most 100000");
+        }
+    }
+
+    private void validateCallbackToken(String callbackToken) {
+        if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
+            throw new ForbiddenException("Invalid Xendit callback token");
+        }
+    }
+
+    private UUID parseCallbackTransactionId(XenditCallbackRequest request) {
+        if (request == null || request.getExternalId() == null || request.getExternalId().isBlank()) {
+            throw new IllegalArgumentException("External id is required");
+        }
+
+        try {
+            return UUID.fromString(request.getExternalId());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("External id must be a valid UUID", exception);
+        }
+    }
+
+    private String normalizeCallbackStatus(XenditCallbackRequest request) {
+        if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
+            throw new IllegalArgumentException("Status is required");
+        }
+
+        String status = request.getStatus().toUpperCase(Locale.ROOT);
+        if (!SUPPORTED_XENDIT_CALLBACK_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Unsupported Xendit callback status");
+        }
+        return status;
+    }
+
+    private void validateCallbackMatchesTransaction(PaymentTransaction transaction, XenditCallbackRequest request) {
+        if (request.getId() == null || request.getId().isBlank()) {
+            throw new IllegalArgumentException("Xendit callback id is required");
+        }
+
+        if (!request.getId().equals(transaction.getGatewayReferenceId())) {
+            throw new IllegalArgumentException(
+                    "Xendit callback id does not match transaction gateway reference id"
+            );
+        }
+
+        if (request.getAmount() == null) {
+            throw new IllegalArgumentException("Amount is required");
+        }
+
+        if (request.getAmount().compareTo(transaction.getAmountIdr()) != 0) {
+            throw new IllegalArgumentException("Xendit callback amount does not match transaction amount");
         }
     }
 
