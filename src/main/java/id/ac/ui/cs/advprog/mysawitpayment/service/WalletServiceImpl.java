@@ -144,14 +144,19 @@ public class WalletServiceImpl implements WalletService {
                         .alreadyProcessed(true)
                         .build())
                 .orElseGet(() -> {
-                    Wallet wallet = Wallet.builder()
-                            .userId(userId)
-                            .build();
+                    UUID walletId = UUID.randomUUID();
+                    int insertedRows = walletRepository.insertIfAbsent(walletId, userId);
 
-                    Wallet savedWallet = walletRepository.save(wallet);
+                    if (insertedRows == 0) {
+                        Wallet existingWallet = findWalletOrThrow(userId);
+                        return WalletCreationResponse.builder()
+                                .walletId(existingWallet.getId())
+                                .alreadyProcessed(true)
+                                .build();
+                    }
 
                     return WalletCreationResponse.builder()
-                            .walletId(savedWallet.getId())
+                            .walletId(walletId)
                             .alreadyProcessed(false)
                             .build();
                 });

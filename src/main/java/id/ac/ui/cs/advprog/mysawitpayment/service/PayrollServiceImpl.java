@@ -142,6 +142,7 @@ public class PayrollServiceImpl implements PayrollService {
     }
 
     @Override
+    @Transactional
     public PayrollCreationResponse createPayroll(PayrollCreationRequest request) {
         UUID userId = request.getUserId();
         UserRole userRole = request.getUserRole();
@@ -168,23 +169,33 @@ public class PayrollServiceImpl implements PayrollService {
                             .multiply(multiplier)
                             .setScale(2, RoundingMode.HALF_UP);
 
-                    Payroll payroll = Payroll.builder()
-                            .userId(userId)
-                            .userRole(userRole)
-                            .referenceType(referenceType)
-                            .referenceId(referenceId)
-                            .kilogram(kilogram)
-                            .ratePerKg(ratePerKg)
-                            .multiplier(multiplier)
-                            .amount(amount)
-                            .status(PayrollStatus.PENDING)
-                            .description(buildPayrollDescription(userRole, kilogram, ratePerKg, amount))
-                            .build();
+                    String description = buildPayrollDescription(userRole, kilogram, ratePerKg, amount);
+                    UUID payrollId = UUID.randomUUID();
 
-                    Payroll savedPayroll = payrollRepository.save(payroll);
+                    int insertedRows = payrollRepository.insertIfAbsent(
+                            payrollId,
+                            userId,
+                            userRole.name(),
+                            amount,
+                            kilogram,
+                            ratePerKg,
+                            multiplier,
+                            PayrollStatus.PENDING.name(),
+                            description,
+                            referenceType.name(),
+                            referenceId
+                    );
+
+                    if (insertedRows == 0) {
+                        Payroll existingPayroll = findPayrollByReferenceOrThrow(referenceType, referenceId, userId);
+                        return PayrollCreationResponse.builder()
+                                .payrollId(existingPayroll.getId())
+                                .alreadyProcessed(true)
+                                .build();
+                    }
 
                     return PayrollCreationResponse.builder()
-                            .payrollId(savedPayroll.getId())
+                            .payrollId(payrollId)
                             .alreadyProcessed(false)
                             .build();
                 });
@@ -246,6 +257,16 @@ public class PayrollServiceImpl implements PayrollService {
         return payrollRepository.findByIdForUpdate(payrollId)
                 .orElseThrow(() ->
                         new PayrollNotFoundException("Payroll " + payrollId + " not found"));
+    }
+
+    private Payroll findPayrollByReferenceOrThrow(
+            ReferenceType referenceType,
+            UUID referenceId,
+            UUID userId
+    ) {
+        return payrollRepository.findByReferenceTypeAndReferenceIdAndUserId(referenceType, referenceId, userId)
+                .orElseThrow(() ->
+                        new PayrollNotFoundException("Payroll for reference " + referenceId + " not found"));
     }
 
     private Specification<Payroll> payrollSpec(PayrollFilter filter) {
