@@ -26,6 +26,10 @@ public class TopUpDetailResponse {
 
     private String gatewayReferenceId;
 
+    private String paymentUrl;
+
+    private OffsetDateTime expiresAt;
+
     private PaymentTransactionStatus status;
 
     private OffsetDateTime createdAt;
