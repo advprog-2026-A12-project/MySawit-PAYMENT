@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -19,9 +20,14 @@ import org.springframework.stereotype.Component;
 public class JwtFilter implements Filter {
 
     private final JwtUtil jwtUtil;
+    private final InternalPathMatcher internalPathMatcher;
 
-    public JwtFilter(JwtUtil jwtUtil) {
+    public JwtFilter(
+            JwtUtil jwtUtil,
+            @Value("${internal.path-prefix}") String internalPathPrefix
+    ) {
         this.jwtUtil = jwtUtil;
+        this.internalPathMatcher = new InternalPathMatcher(internalPathPrefix);
     }
 
     @Override
@@ -48,7 +54,7 @@ public class JwtFilter implements Filter {
             return;
         }
 
-        if (path.startsWith("/api/v1/internal/")) {
+        if (internalPathMatcher.matches(path)) {
             chain.doFilter(request, response);
             return;
         }

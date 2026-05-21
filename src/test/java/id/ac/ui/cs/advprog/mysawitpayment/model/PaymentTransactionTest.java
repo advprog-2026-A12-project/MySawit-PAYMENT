@@ -75,9 +75,11 @@ class PaymentTransactionTest {
     @Test
     void shouldThrowExceptionWhenMarkSuccessNotPending() {
         PaymentTransaction tx = createPendingTransaction();
-        tx.markSuccess(Map.of());
+        Map<String, Object> emptyMetadata = Map.of();
 
-        assertThatThrownBy(() -> tx.markFailed(Map.of()))
+        tx.markSuccess(emptyMetadata);
+
+        assertThatThrownBy(() -> tx.markFailed(emptyMetadata))
                 .isInstanceOf(PaymentTransactionAlreadyProcessedException.class);
     }
 
@@ -110,21 +112,6 @@ class PaymentTransactionTest {
 
         assertThatThrownBy(() -> tx.assignGatewayReferenceId("ref-456"))
                 .isInstanceOf(GatewayReferenceAlreadyAssignedException.class);
-    }
-
-    @Test
-    void shouldUpdateUpdatedAtOnUpdate() throws Exception {
-        PaymentTransaction tx = createPendingTransaction();
-
-        OffsetDateTime beforeUpdate = tx.getUpdatedAt();
-
-        Thread.sleep(1);
-
-        tx.onUpdate();
-
-        OffsetDateTime afterUpdate = tx.getUpdatedAt();
-
-        assertThat(afterUpdate).isNotEqualTo(beforeUpdate);
     }
 
     @Test

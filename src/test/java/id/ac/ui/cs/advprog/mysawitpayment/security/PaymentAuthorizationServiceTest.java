@@ -43,6 +43,17 @@ class PaymentAuthorizationServiceTest {
         assertTrue(authorizationService.canViewPayroll(admin, ownerId));
         assertTrue(authorizationService.canViewPayroll(owner, ownerId));
         assertFalse(authorizationService.canViewPayroll(otherUser, ownerId));
+        assertFalse(authorizationService.canViewPayroll(null, ownerId));
+    }
+
+    @Test
+    void requirePayrollViewerShouldAllowAdminOrOwnerOnly() {
+        UUID ownerId = UUID.randomUUID();
+        AuthenticatedUser admin = new AuthenticatedUser(UUID.randomUUID(), UserRole.ADMIN);
+        AuthenticatedUser otherUser = new AuthenticatedUser(UUID.randomUUID(), UserRole.BURUH);
+
+        assertDoesNotThrow(() -> authorizationService.requirePayrollViewer(admin, ownerId));
+        assertThrows(ForbiddenException.class, () -> authorizationService.requirePayrollViewer(otherUser, ownerId));
     }
 
     @Test
@@ -53,6 +64,7 @@ class PaymentAuthorizationServiceTest {
         AuthenticatedUser worker = new AuthenticatedUser(ownerAdminId, UserRole.BURUH);
 
         assertDoesNotThrow(() -> authorizationService.requireTopUpOwner(ownerAdmin, ownerAdminId));
+        assertFalse(authorizationService.canViewTopUp(null, ownerAdminId));
         assertThrows(
                 ForbiddenException.class,
                 () -> authorizationService.requireTopUpOwner(otherAdmin, ownerAdminId)

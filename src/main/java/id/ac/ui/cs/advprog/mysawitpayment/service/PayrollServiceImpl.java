@@ -172,20 +172,21 @@ public class PayrollServiceImpl implements PayrollService {
 
                     String description = buildPayrollDescription(userRole, kilogram, ratePerKg, amount);
                     UUID payrollId = UUID.randomUUID();
+                    Payroll payrollToInsert = Payroll.builder()
+                            .id(payrollId)
+                            .userId(userId)
+                            .userRole(userRole)
+                            .amount(amount)
+                            .kilogram(kilogram)
+                            .ratePerKg(ratePerKg)
+                            .multiplier(multiplier)
+                            .status(PayrollStatus.PENDING)
+                            .description(description)
+                            .referenceType(referenceType)
+                            .referenceId(referenceId)
+                            .build();
 
-                    int insertedRows = payrollRepository.insertIfAbsent(
-                            payrollId,
-                            userId,
-                            userRole.name(),
-                            amount,
-                            kilogram,
-                            ratePerKg,
-                            multiplier,
-                            PayrollStatus.PENDING.name(),
-                            description,
-                            referenceType.name(),
-                            referenceId
-                    );
+                    int insertedRows = payrollRepository.insertIfAbsent(payrollToInsert);
 
                     if (insertedRows == 0) {
                         Payroll existingPayroll = findPayrollByReferenceOrThrow(referenceType, referenceId, userId);

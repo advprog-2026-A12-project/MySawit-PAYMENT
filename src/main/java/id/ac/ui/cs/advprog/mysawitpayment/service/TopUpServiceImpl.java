@@ -42,7 +42,19 @@ public class TopUpServiceImpl implements TopUpService {
 
     private static final BigDecimal EXCHANGE_RATE = BigDecimal.valueOf(10_000);
     private static final BigDecimal MAX_TOP_UP_AMOUNT = new BigDecimal("100000.00");
-    private static final Set<String> SUPPORTED_XENDIT_CALLBACK_STATUSES = Set.of("PAID", "EXPIRED", "FAILED");
+    private static final String CALLBACK_STATUS_PAID = "PAID";
+    private static final String CALLBACK_STATUS_EXPIRED = "EXPIRED";
+    private static final String CALLBACK_STATUS_FAILED = "FAILED";
+    private static final String PAYMENT_GATEWAY_XENDIT = "XENDIT";
+    private static final String EXCHANGE_RATE_LABEL = "1 SD = Rp 10,000";
+    private static final String TOP_UP_REFERENCE_TYPE = "TOPUP";
+    private static final String TOP_UP_DESCRIPTION = "Top-up via Xendit";
+    private static final String UNSUPPORTED_XENDIT_CALLBACK_STATUS = "Unsupported Xendit callback status";
+    private static final Set<String> SUPPORTED_XENDIT_CALLBACK_STATUSES = Set.of(
+            CALLBACK_STATUS_PAID,
+            CALLBACK_STATUS_EXPIRED,
+            CALLBACK_STATUS_FAILED
+    );
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -67,7 +79,7 @@ public class TopUpServiceImpl implements TopUpService {
                 .adminId(requester.id())
                 .amountSawitDollar(amountSawitDollar)
                 .amountIdr(amountIdr)
-                .paymentGateway("XENDIT")
+                .paymentGateway(PAYMENT_GATEWAY_XENDIT)
                 .status(PaymentTransactionStatus.PENDING)
                 .build();
 
@@ -91,7 +103,7 @@ public class TopUpServiceImpl implements TopUpService {
                 .id(savedTransaction.getId())
                 .amountSawitDollar(savedTransaction.getAmountSawitDollar())
                 .amountIdr(savedTransaction.getAmountIdr())
-                .exchangeRate("1 SD = Rp 10,000")
+                .exchangeRate(EXCHANGE_RATE_LABEL)
                 .paymentGateway(savedTransaction.getPaymentGateway())
                 .status(savedTransaction.getStatus())
                 .paymentUrl(savedTransaction.getPaymentUrl())
@@ -147,9 +159,9 @@ public class TopUpServiceImpl implements TopUpService {
             walletService.creditWallet(
                     transaction.getAdminId(),
                     transaction.getAmountSawitDollar(),
-                    "TOPUP",
+                    TOP_UP_REFERENCE_TYPE,
                     transaction.getId(),
-                    "Top-up via Xendit"
+                    TOP_UP_DESCRIPTION
             );
         } else if (requestedStatus == PaymentTransactionStatus.EXPIRED) {
             transaction.markExpired(payloadMap);
@@ -161,16 +173,16 @@ public class TopUpServiceImpl implements TopUpService {
     }
 
     private PaymentTransactionStatus mapCallbackStatus(String callbackStatus) {
-        if ("PAID".equals(callbackStatus)) {
+        if (CALLBACK_STATUS_PAID.equals(callbackStatus)) {
             return PaymentTransactionStatus.SUCCESS;
         }
-        if ("EXPIRED".equals(callbackStatus)) {
+        if (CALLBACK_STATUS_EXPIRED.equals(callbackStatus)) {
             return PaymentTransactionStatus.EXPIRED;
         }
-        if ("FAILED".equals(callbackStatus)) {
+        if (CALLBACK_STATUS_FAILED.equals(callbackStatus)) {
             return PaymentTransactionStatus.FAILED;
         }
-        throw new IllegalArgumentException("Unsupported Xendit callback status");
+        throw new IllegalArgumentException(UNSUPPORTED_XENDIT_CALLBACK_STATUS);
     }
 
     @Override
@@ -222,7 +234,7 @@ public class TopUpServiceImpl implements TopUpService {
 
         String status = request.getStatus().toUpperCase(Locale.ROOT);
         if (!SUPPORTED_XENDIT_CALLBACK_STATUSES.contains(status)) {
-            throw new IllegalArgumentException("Unsupported Xendit callback status");
+            throw new IllegalArgumentException(UNSUPPORTED_XENDIT_CALLBACK_STATUS);
         }
         return status;
     }
@@ -283,7 +295,7 @@ public class TopUpServiceImpl implements TopUpService {
                         .build())
                 .amountSawitDollar(paymentTransaction.getAmountSawitDollar())
                 .amountIdr(paymentTransaction.getAmountIdr())
-                .exchangeRate("1 SD = Rp 10,000")
+                .exchangeRate(EXCHANGE_RATE_LABEL)
                 .paymentGateway(paymentTransaction.getPaymentGateway())
                 .gatewayReferenceId(paymentTransaction.getGatewayReferenceId())
                 .paymentUrl(paymentTransaction.getPaymentUrl())

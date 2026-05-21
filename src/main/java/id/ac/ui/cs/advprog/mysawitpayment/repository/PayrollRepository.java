@@ -11,7 +11,6 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,22 +33,12 @@ public interface PayrollRepository extends JpaRepository<Payroll, UUID>, JpaSpec
                 status, description, reference_type, reference_id
             )
             VALUES (
-                :id, :userId, :userRole, :amount, :kilogram, :ratePerKg, :multiplier,
-                :status, :description, :referenceType, :referenceId
+                :#{#payroll.id}, :#{#payroll.userId}, :#{#payroll.userRole.name()},
+                :#{#payroll.amount}, :#{#payroll.kilogram}, :#{#payroll.ratePerKg},
+                :#{#payroll.multiplier}, :#{#payroll.status.name()}, :#{#payroll.description},
+                :#{#payroll.referenceType.name()}, :#{#payroll.referenceId}
             )
             ON CONFLICT (reference_type, reference_id, user_id) DO NOTHING
             """, nativeQuery = true)
-    int insertIfAbsent(
-            @Param("id") UUID id,
-            @Param("userId") UUID userId,
-            @Param("userRole") String userRole,
-            @Param("amount") BigDecimal amount,
-            @Param("kilogram") BigDecimal kilogram,
-            @Param("ratePerKg") BigDecimal ratePerKg,
-            @Param("multiplier") BigDecimal multiplier,
-            @Param("status") String status,
-            @Param("description") String description,
-            @Param("referenceType") String referenceType,
-            @Param("referenceId") UUID referenceId
-    );
+    int insertIfAbsent(@Param("payroll") Payroll payroll);
 }

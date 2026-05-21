@@ -49,4 +49,17 @@ class AuthenticatedUserTest {
 
         assertEquals("Authenticated user claims are invalid", exception.getMessage());
     }
+
+    @Test
+    void fromShouldThrowBadRequestWhenRoleClaimIsMissing() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setAttribute("userId", UUID.randomUUID().toString());
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> AuthenticatedUser.from(request)
+        );
+
+        assertEquals("Authenticated user claims are required", exception.getMessage());
+    }
 }

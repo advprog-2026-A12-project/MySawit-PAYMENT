@@ -36,8 +36,8 @@ import java.time.ZoneOffset;
 public class TopUpController {
 
     private static final Map<String, String> TOP_UP_SORT_FIELDS = Map.of(
-            "createdAt", "createdAt",
-            "amountSawitDollar", "amountSawitDollar"
+            ControllerConstants.SORT_CREATED_AT, ControllerConstants.SORT_CREATED_AT,
+            ControllerConstants.SORT_AMOUNT_SAWIT_DOLLAR, ControllerConstants.SORT_AMOUNT_SAWIT_DOLLAR
     );
 
     private final TopUpService topUpService;
@@ -53,7 +53,7 @@ public class TopUpController {
         );
 
         return ApiResponse.<CreateTopUpResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Top-up created successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -66,14 +66,14 @@ public class TopUpController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) PaymentTransactionStatus status,
-            @RequestParam(defaultValue = "createdAt,desc") String sort
+            @RequestParam(defaultValue = ControllerConstants.DEFAULT_CREATED_AT_DESC) String sort
     ) {
         Pageable pageable = PageableRequest.of(
                 page,
                 size,
                 sort,
                 TOP_UP_SORT_FIELDS,
-                "createdAt,desc"
+                ControllerConstants.DEFAULT_CREATED_AT_DESC
         );
 
         Page<HistoryTopUpResponse> resultPage = topUpService.getMyTopUps(
@@ -93,7 +93,7 @@ public class TopUpController {
                 .build();
 
         return ApiResponse.<PageResponse<HistoryTopUpResponse>>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Top-up history retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -111,7 +111,7 @@ public class TopUpController {
         );
 
         return ApiResponse.<TopUpDetailResponse>builder()
-                .status("success")
+                .status(ControllerConstants.RESPONSE_STATUS_SUCCESS)
                 .message("Top-up detail retrieved successfully")
                 .data(response)
                 .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
@@ -124,7 +124,7 @@ public class TopUpController {
             @Valid @RequestBody XenditCallbackRequest request
     ) {
         topUpService.handleXenditCallback(callbackToken, request);
-        return Map.of("status", "success");
+        return Map.of("status", ControllerConstants.RESPONSE_STATUS_SUCCESS);
     }
 
 }
