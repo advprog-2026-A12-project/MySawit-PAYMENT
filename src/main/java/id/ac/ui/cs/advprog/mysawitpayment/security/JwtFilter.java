@@ -1,5 +1,6 @@
 package id.ac.ui.cs.advprog.mysawitpayment.security;
 
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.Filter;
 import jakarta.servlet.ServletRequest;
@@ -9,6 +10,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.UUID;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -54,20 +56,23 @@ public class JwtFilter implements Filter {
         String authHeader = request.getHeader("Authorization");
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.setStatus(401);
-            response.getWriter().write("{\"status\":\"error\",\"message\":\"Missing token\"}");
+            ErrorResponseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Missing token");
             return;
         }
 
         String token = authHeader.substring(7);
 
         if (!jwtUtil.isValid(token)) {
-            response.setStatus(401);
-            response.getWriter().write("{\"status\":\"error\",\"message\":\"Invalid token\"}");
+            ErrorResponseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
             return;
         }
 
         Claims claims = jwtUtil.extractClaims(token);
+
+        if (!hasValidRequiredClaims(claims)) {
+            ErrorResponseWriter.write(response, HttpServletResponse.SC_UNAUTHORIZED, "Invalid token");
+            return;
+        }
 
         // Make user info available to controllers
         request.setAttribute("userId", claims.getSubject());
@@ -76,5 +81,24 @@ public class JwtFilter implements Filter {
         request.setAttribute("userName", claims.get("name", String.class));
 
         chain.doFilter(request, response);
+    }
+
+    private boolean hasValidRequiredClaims(Claims claims) {
+        if (claims == null || claims.getSubject() == null) {
+            return false;
+        }
+
+        String role = claims.get("role", String.class);
+        if (role == null) {
+            return false;
+        }
+
+        try {
+            UUID.fromString(claims.getSubject());
+            UserRole.valueOf(role);
+            return true;
+        } catch (RuntimeException exception) {
+            return false;
+        }
     }
 }

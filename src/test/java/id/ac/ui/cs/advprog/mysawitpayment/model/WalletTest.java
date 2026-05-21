@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -81,8 +82,8 @@ class WalletTest {
         Wallet invalidWallet = Wallet.builder()
                 .userId(UUID.randomUUID())
                 .balance(new BigDecimal("-10.00"))
-                .createdAt(OffsetDateTime.now())
-                .updatedAt(OffsetDateTime.now())
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
+                .updatedAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         IllegalArgumentException exception = assertThrows(

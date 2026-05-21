@@ -1,6 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.RejectPayrollRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.PayrollFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AcceptPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.ApiResponse;
@@ -8,15 +9,17 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PageResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.ReferenceType;
+import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.PayrollService;
 
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,14 +30,29 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.Map;
 import java.util.UUID;
+import java.time.ZoneOffset;
 
 @RestController
 @RequestMapping("/api/v1/payrolls")
 @RequiredArgsConstructor
 public class PayrollController {
+
+    private static final Map<String, String> PAYROLL_ADMIN_SORT_FIELDS = Map.of(
+            "createdAt", "createdAt",
+            "amount", "amount",
+            "kilogram", "kilogram"
+    );
+
+    private static final Map<String, String> PAYROLL_SELF_SORT_FIELDS = Map.of(
+            "createdAt", "createdAt",
+            "amount", "amount"
+    );
 
     private final PayrollService payrollService;
 
@@ -42,17 +60,36 @@ public class PayrollController {
     public ApiResponse<PageResponse<AdminPayrollResponse>> getPayrolls(
             HttpServletRequest request,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) PayrollStatus status,
+            @RequestParam(required = false) UserRole userRole,
+            @RequestParam(required = false) ReferenceType referenceType,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
-        Pageable pageable = PageRequest.of(
+        Pageable pageable = PageableRequest.of(
                 page,
                 size,
-                Sort.by("createdAt").descending()
+                sort,
+                PAYROLL_ADMIN_SORT_FIELDS,
+                "createdAt,desc"
+        );
+
+        PayrollFilter filter = new PayrollFilter(
+                userId,
+                status,
+                userRole,
+                referenceType,
+                PageableRequest.startOfDay(dateFrom),
+                PageableRequest.startOfNextDay(dateTo)
         );
 
         Page<AdminPayrollResponse> payrollPage =
-                payrollService.getAllPayrolls(AuthenticatedUser.from(request), pageable);
+                payrollService.getAllPayrolls(AuthenticatedUser.from(request), filter, pageable);
 
         PageResponse<AdminPayrollResponse> pageResponse =
                 PageResponse.<AdminPayrollResponse>builder()
@@ -69,7 +106,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payrolls retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -77,17 +114,33 @@ public class PayrollController {
     public ApiResponse<PageResponse<PayrollResponse>> getMyPayrolls(
             HttpServletRequest request,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) PayrollStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+            @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
+        PageableRequest.validateDateRange(dateFrom, dateTo);
 
-        Pageable pageable = PageRequest.of(
+        Pageable pageable = PageableRequest.of(
                 page,
                 size,
-                Sort.by("createdAt").descending()
+                sort,
+                PAYROLL_SELF_SORT_FIELDS,
+                "createdAt,desc"
+        );
+
+        PayrollFilter filter = new PayrollFilter(
+                null,
+                status,
+                null,
+                null,
+                PageableRequest.startOfDay(dateFrom),
+                PageableRequest.startOfNextDay(dateTo)
         );
 
         Page<PayrollResponse> payrollPage =
-                payrollService.getMyPayrolls(AuthenticatedUser.from(request), pageable);
+                payrollService.getMyPayrolls(AuthenticatedUser.from(request), filter, pageable);
 
         PageResponse<PayrollResponse> pageResponse =
                 PageResponse.<PayrollResponse>builder()
@@ -104,7 +157,7 @@ public class PayrollController {
                 .status("success")
                 .message("My payrolls retrieved successfully")
                 .data(pageResponse)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -123,7 +176,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll detail retrieved successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -140,7 +193,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll accepted and disbursed successfully")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 
@@ -148,7 +201,7 @@ public class PayrollController {
     public ApiResponse<RejectPayrollResponse> rejectPayroll(
             HttpServletRequest request,
             @PathVariable UUID payrollId,
-            @RequestBody RejectPayrollRequest requestBody
+            @Valid @RequestBody RejectPayrollRequest requestBody
     ) {
 
         RejectPayrollResponse response =
@@ -162,7 +215,7 @@ public class PayrollController {
                 .status("success")
                 .message("Payroll rejected")
                 .data(response)
-                .timestamp(OffsetDateTime.now())
+                .timestamp(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }

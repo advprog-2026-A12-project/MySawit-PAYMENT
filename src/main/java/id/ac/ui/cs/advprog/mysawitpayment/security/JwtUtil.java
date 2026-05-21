@@ -13,7 +13,7 @@ public class JwtUtil {
 
     private final SecretKey signingKey;
 
-    public JwtUtil(@Value("${JWT_SECRET}") String secret) {
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));
     }
 

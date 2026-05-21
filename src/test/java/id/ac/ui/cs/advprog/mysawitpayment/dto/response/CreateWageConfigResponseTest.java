@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.json.JsonTest;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,10 +29,9 @@ class CreateWageConfigResponseTest {
                 .isActive(true)
                 .updatedBy(UpdatedByResponse.builder()
                         .id(UUID.randomUUID())
-                        .name("Admin")
                         .build())
-                .effectiveFrom(OffsetDateTime.now())
-                .createdAt(OffsetDateTime.now())
+                .effectiveFrom(OffsetDateTime.now(ZoneOffset.UTC))
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         String json = objectMapper.writeValueAsString(response);
@@ -60,14 +60,13 @@ class CreateWageConfigResponseTest {
                         .upahBuruhPerKg(BigDecimal.valueOf(2.5))
                         .upahSupirPerKg(BigDecimal.valueOf(1.5))
                         .upahMandorPerKg(BigDecimal.valueOf(1.0))
-                        .deactivatedAt(OffsetDateTime.now())
+                        .deactivatedAt(OffsetDateTime.now(ZoneOffset.UTC))
                         .build())
                 .updatedBy(UpdatedByResponse.builder()
                         .id(adminId)
-                        .name("Admin")
                         .build())
-                .effectiveFrom(OffsetDateTime.now())
-                .createdAt(OffsetDateTime.now())
+                .effectiveFrom(OffsetDateTime.now(ZoneOffset.UTC))
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC))
                 .build();
 
         String json = objectMapper.writeValueAsString(response);
@@ -79,6 +78,6 @@ class CreateWageConfigResponseTest {
         // nested updatedBy
         assertThat(json).contains("\"updatedBy\"");
         assertThat(json).contains(adminId.toString());
-        assertThat(json).contains("\"name\":\"Admin\"");
+        assertThat(json).doesNotContain("\"name\":");
     }
 }

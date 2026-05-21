@@ -8,6 +8,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 import jakarta.servlet.FilterChain;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -39,6 +41,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -58,6 +63,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Invalid token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -76,14 +84,16 @@ class JwtFilterTest {
         when(jwtUtil.isValid("validtoken")).thenReturn(true);
         when(jwtUtil.extractClaims("validtoken")).thenReturn(claims);
 
-        when(claims.getSubject()).thenReturn("user-123");
+        String userId = UUID.randomUUID().toString();
+
+        when(claims.getSubject()).thenReturn(userId);
         when(claims.get("role", String.class)).thenReturn("ADMIN");
         when(claims.get("email", String.class)).thenReturn("admin@test.com");
         when(claims.get("name", String.class)).thenReturn("Admin");
 
         jwtFilter.doFilter(request, response, chain);
 
-        assertEquals("user-123", request.getAttribute("userId"));
+        assertEquals(userId, request.getAttribute("userId"));
         assertEquals("ADMIN", request.getAttribute("userRole"));
         assertEquals("admin@test.com", request.getAttribute("userEmail"));
         assertEquals("Admin", request.getAttribute("userName"));
@@ -104,7 +114,52 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testInvalidTokenWhenSubjectClaimIsMalformed() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer malformedclaims");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.isValid("malformedclaims")).thenReturn(true);
+        when(jwtUtil.extractClaims("malformedclaims")).thenReturn(claims);
+        when(claims.getSubject()).thenReturn("not-a-uuid");
+        when(claims.get("role", String.class)).thenReturn("ADMIN");
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid token"));
+        verify(chain, never()).doFilter(request, response);
+    }
+
+    @Test
+    void testInvalidTokenWhenRoleClaimIsMalformed() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer badrole");
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        Claims claims = mock(Claims.class);
+        when(jwtUtil.isValid("badrole")).thenReturn(true);
+        when(jwtUtil.extractClaims("badrole")).thenReturn(claims);
+        when(claims.getSubject()).thenReturn(UUID.randomUUID().toString());
+        when(claims.get("role", String.class)).thenReturn("NOT_A_ROLE");
+
+        jwtFilter.doFilter(request, response, chain);
+
+        assertEquals(401, response.getStatus());
+        assertTrue(response.getContentAsString().contains("Invalid token"));
         verify(chain, never()).doFilter(request, response);
     }
 
@@ -169,6 +224,9 @@ class JwtFilterTest {
 
         assertEquals(401, response.getStatus());
         assertTrue(response.getContentAsString().contains("Missing token"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }

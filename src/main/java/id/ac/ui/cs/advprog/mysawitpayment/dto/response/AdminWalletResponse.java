@@ -15,10 +15,6 @@ public class AdminWalletResponse {
 
     private UUID userId;
 
-    private String userName;
-
-    private String userRole;
-
     private BigDecimal balance;
 
     private String currency;

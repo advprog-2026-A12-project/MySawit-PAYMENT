@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.dto.response;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -11,7 +12,7 @@ class ApiResponseTest {
     @Test
     void testBuilderAndGetter() {
 
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
 
         ApiResponse<String> response = ApiResponse.<String>builder()
                 .status("success")

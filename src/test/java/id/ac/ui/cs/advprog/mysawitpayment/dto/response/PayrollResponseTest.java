@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,8 +24,8 @@ class PayrollResponseTest {
         String status = "PENDING";
         String referenceType = "HARVEST";
         String description = "Payroll for harvest";
-        OffsetDateTime approvedAt = OffsetDateTime.now();
-        OffsetDateTime createdAt = OffsetDateTime.now();
+        OffsetDateTime approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
 
         response.setId(id);
         response.setAmount(amount);

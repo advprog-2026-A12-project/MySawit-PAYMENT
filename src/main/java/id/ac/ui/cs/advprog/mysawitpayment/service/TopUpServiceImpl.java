@@ -3,6 +3,7 @@ package id.ac.ui.cs.advprog.mysawitpayment.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.CreateInvoiceResult;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
@@ -10,19 +11,29 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminReferenceResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidAmountException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionAlreadyProcessedException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.PaymentTransactionNotFoundException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.PaymentTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -30,6 +41,8 @@ import java.util.UUID;
 public class TopUpServiceImpl implements TopUpService {
 
     private static final BigDecimal EXCHANGE_RATE = BigDecimal.valueOf(10_000);
+    private static final BigDecimal MAX_TOP_UP_AMOUNT = new BigDecimal("100000.00");
+    private static final Set<String> SUPPORTED_XENDIT_CALLBACK_STATUSES = Set.of("PAID", "EXPIRED", "FAILED");
 
     private final PaymentTransactionRepository paymentTransactionRepository;
 
@@ -42,6 +55,7 @@ public class TopUpServiceImpl implements TopUpService {
     private final PaymentAuthorizationService authorizationService;
 
     @Override
+    @Transactional
     public CreateTopUpResponse createTopUp(CreateTopUpRequest request, AuthenticatedUser requester) {
         authorizationService.requireAdmin(requester);
         validateCreateTopUpRequest(request);
@@ -65,7 +79,11 @@ public class TopUpServiceImpl implements TopUpService {
                 amountIdr
         );
 
-        savedTransaction.assignGatewayReferenceId(invoiceResult.getGatewayReferenceId());
+        savedTransaction.assignGatewayInvoice(
+                invoiceResult.getGatewayReferenceId(),
+                invoiceResult.getPaymentUrl(),
+                invoiceResult.getExpiresAt()
+        );
 
         paymentTransactionRepository.save(savedTransaction);
 
@@ -76,46 +94,54 @@ public class TopUpServiceImpl implements TopUpService {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway(savedTransaction.getPaymentGateway())
                 .status(savedTransaction.getStatus())
-                .paymentUrl(invoiceResult.getPaymentUrl())
-                .expiresAt(invoiceResult.getExpiresAt())
+                .paymentUrl(savedTransaction.getPaymentUrl())
+                .expiresAt(savedTransaction.getExpiresAt())
                 .createdAt(savedTransaction.getCreatedAt())
                 .build();
     }
 
     @Override
-    public Page<HistoryTopUpResponse> getMyTopUps(AuthenticatedUser requester, Pageable pageable) {
+    public Page<HistoryTopUpResponse> getMyTopUps(
+            AuthenticatedUser requester,
+            TopUpFilter filter,
+            Pageable pageable
+    ) {
         authorizationService.requireAdmin(requester);
 
-        return paymentTransactionRepository.findByAdminId(requester.id(), pageable)
+        return paymentTransactionRepository.findAll(topUpSpec(requester.id(), filter), pageable)
                 .map(this::mapToHistoryTopUpResponse);
     }
 
     @Override
+    @Transactional
     public void handleXenditCallback(String callbackToken, XenditCallbackRequest request) {
-        if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
-            throw new RuntimeException("Invalid Xendit callback token");
-        }
+        validateCallbackToken(callbackToken);
 
-        UUID transactionId = UUID.fromString(request.getExternalId());
+        UUID transactionId = parseCallbackTransactionId(request);
+        String callbackStatus = normalizeCallbackStatus(request);
 
-        PaymentTransaction transaction = paymentTransactionRepository.findById(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment transaction not found"));
+        PaymentTransaction transaction = paymentTransactionRepository.findByIdForUpdate(transactionId)
+                .orElseThrow(PaymentTransactionNotFoundException::new);
 
-        if (transaction.getStatus() == PaymentTransactionStatus.SUCCESS) {
-            return;
-        }
-
-        if (transaction.getGatewayReferenceId() == null) {
-            transaction.assignGatewayReferenceId(request.getId());
-        }
+        validateCallbackMatchesTransaction(transaction, request);
 
         ObjectMapper mapper = new ObjectMapper();
 
         mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
 
+        @SuppressWarnings("unchecked")
         Map<String, Object> payloadMap = mapper.convertValue(request, Map.class);
 
-        if ("PAID".equalsIgnoreCase(request.getStatus())) {
+        PaymentTransactionStatus requestedStatus = mapCallbackStatus(callbackStatus);
+
+        if (transaction.getStatus() != PaymentTransactionStatus.PENDING) {
+            if (transaction.getStatus() == requestedStatus) {
+                return;
+            }
+            throw new PaymentTransactionAlreadyProcessedException();
+        }
+
+        if (requestedStatus == PaymentTransactionStatus.SUCCESS) {
             transaction.markSuccess(payloadMap);
 
             walletService.creditWallet(
@@ -125,19 +151,32 @@ public class TopUpServiceImpl implements TopUpService {
                     transaction.getId(),
                     "Top-up via Xendit"
             );
-        } else if ("EXPIRED".equalsIgnoreCase(request.getStatus())) {
+        } else if (requestedStatus == PaymentTransactionStatus.EXPIRED) {
             transaction.markExpired(payloadMap);
-        } else if ("FAILED".equalsIgnoreCase(request.getStatus())) {
+        } else if (requestedStatus == PaymentTransactionStatus.FAILED) {
             transaction.markFailed(payloadMap);
         }
 
         paymentTransactionRepository.save(transaction);
     }
 
+    private PaymentTransactionStatus mapCallbackStatus(String callbackStatus) {
+        if ("PAID".equals(callbackStatus)) {
+            return PaymentTransactionStatus.SUCCESS;
+        }
+        if ("EXPIRED".equals(callbackStatus)) {
+            return PaymentTransactionStatus.EXPIRED;
+        }
+        if ("FAILED".equals(callbackStatus)) {
+            return PaymentTransactionStatus.FAILED;
+        }
+        throw new IllegalArgumentException("Unsupported Xendit callback status");
+    }
+
     @Override
     public TopUpDetailResponse getTopUpDetail(UUID id, AuthenticatedUser requester) {
         PaymentTransaction paymentTransaction = paymentTransactionRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Top-up transaction not found"));
+                .orElseThrow(() -> new PaymentTransactionNotFoundException("Top-up transaction not found"));
 
         authorizationService.requireTopUpOwner(requester, paymentTransaction.getAdminId());
 
@@ -146,12 +185,80 @@ public class TopUpServiceImpl implements TopUpService {
 
     private void validateCreateTopUpRequest(CreateTopUpRequest request) {
         if (request == null || request.getAmountSawitDollar() == null) {
-            throw new IllegalArgumentException("Amount SawitDollar is required");
+            throw new InvalidAmountException("Amount SawitDollar is required");
         }
 
         if (request.getAmountSawitDollar().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("Amount SawitDollar must be greater than 0");
+            throw new InvalidAmountException("Amount SawitDollar must be greater than 0");
         }
+
+        if (request.getAmountSawitDollar().compareTo(MAX_TOP_UP_AMOUNT) > 0) {
+            throw new InvalidAmountException("Amount SawitDollar must be at most 100000");
+        }
+    }
+
+    private void validateCallbackToken(String callbackToken) {
+        if (callbackToken == null || !callbackToken.equals(xenditProperties.getWebhookToken())) {
+            throw new ForbiddenException("Invalid Xendit callback token");
+        }
+    }
+
+    private UUID parseCallbackTransactionId(XenditCallbackRequest request) {
+        if (request == null || request.getExternalId() == null || request.getExternalId().isBlank()) {
+            throw new IllegalArgumentException("External id is required");
+        }
+
+        try {
+            return UUID.fromString(request.getExternalId());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("External id must be a valid UUID", exception);
+        }
+    }
+
+    private String normalizeCallbackStatus(XenditCallbackRequest request) {
+        if (request == null || request.getStatus() == null || request.getStatus().isBlank()) {
+            throw new IllegalArgumentException("Status is required");
+        }
+
+        String status = request.getStatus().toUpperCase(Locale.ROOT);
+        if (!SUPPORTED_XENDIT_CALLBACK_STATUSES.contains(status)) {
+            throw new IllegalArgumentException("Unsupported Xendit callback status");
+        }
+        return status;
+    }
+
+    private void validateCallbackMatchesTransaction(PaymentTransaction transaction, XenditCallbackRequest request) {
+        if (request.getId() == null || request.getId().isBlank()) {
+            throw new IllegalArgumentException("Xendit callback id is required");
+        }
+
+        if (!request.getId().equals(transaction.getGatewayReferenceId())) {
+            throw new IllegalArgumentException(
+                    "Xendit callback id does not match transaction gateway reference id"
+            );
+        }
+
+        if (request.getAmount() == null) {
+            throw new IllegalArgumentException("Amount is required");
+        }
+
+        if (request.getAmount().compareTo(transaction.getAmountIdr()) != 0) {
+            throw new IllegalArgumentException("Xendit callback amount does not match transaction amount");
+        }
+    }
+
+    private Specification<PaymentTransaction> topUpSpec(UUID adminId, TopUpFilter filter) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            predicates.add(cb.equal(root.get("adminId"), adminId));
+
+            if (filter != null && filter.status() != null) {
+                predicates.add(cb.equal(root.get("status"), filter.status()));
+            }
+
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     private HistoryTopUpResponse mapToHistoryTopUpResponse(PaymentTransaction paymentTransaction) {
@@ -161,6 +268,8 @@ public class TopUpServiceImpl implements TopUpService {
                 .amountIdr(paymentTransaction.getAmountIdr())
                 .paymentGateway(paymentTransaction.getPaymentGateway())
                 .status(paymentTransaction.getStatus().name())
+                .paymentUrl(paymentTransaction.getPaymentUrl())
+                .expiresAt(paymentTransaction.getExpiresAt())
                 .createdAt(paymentTransaction.getCreatedAt())
                 .updatedAt(paymentTransaction.getUpdatedAt())
                 .build();
@@ -171,13 +280,14 @@ public class TopUpServiceImpl implements TopUpService {
                 .id(paymentTransaction.getId())
                 .admin(AdminReferenceResponse.builder()
                         .id(paymentTransaction.getAdminId())
-                        .name(null) // TODO: isi nanti kalau sudah ada source nama admin
                         .build())
                 .amountSawitDollar(paymentTransaction.getAmountSawitDollar())
                 .amountIdr(paymentTransaction.getAmountIdr())
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway(paymentTransaction.getPaymentGateway())
                 .gatewayReferenceId(paymentTransaction.getGatewayReferenceId())
+                .paymentUrl(paymentTransaction.getPaymentUrl())
+                .expiresAt(paymentTransaction.getExpiresAt())
                 .status(paymentTransaction.getStatus())
                 .createdAt(paymentTransaction.getCreatedAt())
                 .updatedAt(paymentTransaction.getUpdatedAt())

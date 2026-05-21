@@ -11,14 +11,11 @@ class UpdatedByResponseTest {
     @Test
     void shouldBuildCorrectly() {
         UUID id = UUID.randomUUID();
-        String name = "Admin";
 
         UpdatedByResponse response = UpdatedByResponse.builder()
                 .id(id)
-                .name(name)
                 .build();
 
         assertEquals(id, response.getId());
-        assertEquals(name, response.getName());
     }
 }

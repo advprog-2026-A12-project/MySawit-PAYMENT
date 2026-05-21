@@ -7,14 +7,18 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryWageConfigResponse
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PreviousWageConfigResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.UpdatedByResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ActiveWageConfigNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.WageConfigConflictException;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.WageConfigRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
+import org.springframework.dao.ConcurrencyFailureException;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -40,26 +44,31 @@ public class WageConfigServiceImpl implements WageConfigService {
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public CreateWageConfigResponse createWageConfig(CreateWageConfigRequest request, AuthenticatedUser requester) {
         authorizationService.requireWageConfigManager(requester);
-        WageConfig previousActiveConfig = wageConfigRepository.findByIsActiveTrue().orElse(null);
 
-        if (previousActiveConfig != null) {
-            previousActiveConfig.deactivate();
-            wageConfigRepository.saveAndFlush(previousActiveConfig);
+        try {
+            WageConfig previousActiveConfig = wageConfigRepository.findActiveForUpdate().orElse(null);
+
+            if (previousActiveConfig != null) {
+                previousActiveConfig.deactivate();
+                wageConfigRepository.saveAndFlush(previousActiveConfig);
+            }
+
+            WageConfig newConfig = WageConfig.builder()
+                    .upahBuruhPerKg(request.getUpahBuruhPerKg())
+                    .upahSupirPerKg(request.getUpahSupirPerKg())
+                    .upahMandorPerKg(request.getUpahMandorPerKg())
+                    .updatedBy(requester.id())
+                    .build();
+
+            WageConfig savedConfig = wageConfigRepository.save(newConfig);
+
+            return mapToCreateWageConfigResponse(savedConfig, previousActiveConfig);
+        } catch (ConcurrencyFailureException | DataIntegrityViolationException exception) {
+            throw new WageConfigConflictException();
         }
-
-        WageConfig newConfig = WageConfig.builder()
-                .upahBuruhPerKg(request.getUpahBuruhPerKg())
-                .upahSupirPerKg(request.getUpahSupirPerKg())
-                .upahMandorPerKg(request.getUpahMandorPerKg())
-                .updatedBy(requester.id())
-                .build();
-
-        WageConfig savedConfig = wageConfigRepository.save(newConfig);
-
-        return mapToCreateWageConfigResponse(savedConfig, previousActiveConfig);
     }
 
     @Override
@@ -131,10 +140,8 @@ public class WageConfigServiceImpl implements WageConfigService {
     }
 
     private UpdatedByResponse mapToUpdatedByResponse(UUID updatedById) {
-        // TODO: Ambil nama admin
         return UpdatedByResponse.builder()
                 .id(updatedById)
-                .name(null)
                 .build();
     }
 }

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +19,6 @@ class PayrollDetailResponseTest {
 
         PayrollUserResponse user = new PayrollUserResponse();
         user.setId(UUID.randomUUID());
-        user.setName("Ahmad Buruh");
         user.setRole("BURUH");
 
         BigDecimal amount = BigDecimal.valueOf(562.61);
@@ -34,11 +34,10 @@ class PayrollDetailResponseTest {
 
         PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
         approvedBy.setId(UUID.randomUUID());
-        approvedBy.setName("Admin Utama");
 
-        OffsetDateTime approvedAt = OffsetDateTime.now();
-        OffsetDateTime createdAt = OffsetDateTime.now();
-        OffsetDateTime updatedAt = OffsetDateTime.now();
+        OffsetDateTime approvedAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime createdAt = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime updatedAt = OffsetDateTime.now(ZoneOffset.UTC);
 
         response.setId(id);
         response.setUser(user);

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,7 +17,7 @@ class WalletResponseTest {
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         BigDecimal balance = BigDecimal.valueOf(100);
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         walletResponse.setId(id);
         walletResponse.setUserId(userId);
         walletResponse.setBalance(balance);

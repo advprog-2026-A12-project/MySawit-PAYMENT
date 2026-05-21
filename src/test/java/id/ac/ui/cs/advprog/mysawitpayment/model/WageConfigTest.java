@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -64,7 +65,7 @@ class WageConfigTest {
 
     @Test
     void testPrePersistDoesNotOverrideEffectiveFrom() {
-        OffsetDateTime customEffectiveFrom = OffsetDateTime.now().minusDays(1);
+        OffsetDateTime customEffectiveFrom = OffsetDateTime.now(ZoneOffset.UTC).minusDays(1);
 
         WageConfig config = WageConfig.builder()
                 .upahBuruhPerKg(new BigDecimal("2000.00"))

@@ -2,17 +2,19 @@ package id.ac.ui.cs.advprog.mysawitpayment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.XenditCallbackRequest;
+import id.ac.ui.cs.advprog.mysawitpayment.dto.request.filter.TopUpFilter;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.CreateTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.HistoryTopUpResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.TopUpDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
+import id.ac.ui.cs.advprog.mysawitpayment.exception.GlobalExceptionHandler;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PaymentTransactionStatus;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.service.TopUpService;
-import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
@@ -28,14 +30,13 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,7 +53,9 @@ class TopUpControllerTest {
         topUpService = mock(TopUpService.class);
         TopUpController controller = new TopUpController(topUpService);
 
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         objectMapper = new ObjectMapper();
     }
 
@@ -104,6 +107,54 @@ class TopUpControllerTest {
     }
 
     @Test
+    void createTopUpShouldRejectMissingAmount() throws Exception {
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
+    }
+
+    @Test
+    void createTopUpShouldRejectNonPositiveAmount() throws Exception {
+        String requestBody = """
+                {
+                  "amountSawitDollar": 0
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
+    }
+
+    @Test
+    void createTopUpShouldRejectAmountAboveMaximum() throws Exception {
+        String requestBody = """
+                {
+                  "amountSawitDollar": 100000.01
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup")
+                        .requestAttr("userRole", "ADMIN")
+                        .requestAttr("userId", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest());
+
+        verify(topUpService, never()).createTopUp(any(), any());
+    }
+
+    @Test
     void getMyTopUpsShouldReturnSuccessWhenAdmin() throws Exception {
         UUID adminId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
@@ -114,6 +165,8 @@ class TopUpControllerTest {
                 .amountIdr(new BigDecimal("150000.00"))
                 .paymentGateway("XENDIT")
                 .status("SUCCESS")
+                .paymentUrl("https://pay.xendit.co/inv-history")
+                .expiresAt(now.plusHours(1))
                 .createdAt(now.minusHours(1))
                 .updatedAt(now)
                 .build();
@@ -126,13 +179,15 @@ class TopUpControllerTest {
 
         AuthenticatedUser admin = new AuthenticatedUser(adminId, UserRole.ADMIN);
 
-        when(topUpService.getMyTopUps(eq(admin), any(Pageable.class))).thenReturn(page);
+        when(topUpService.getMyTopUps(eq(admin), any(TopUpFilter.class), any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "ADMIN")
                         .requestAttr("userId", adminId.toString())
                         .param("page", "0")
-                        .param("size", "20"))
+                        .param("size", "20")
+                        .param("status", "SUCCESS")
+                        .param("sort", "amountSawitDollar,asc"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.message").value("Top-up history retrieved successfully"))
@@ -141,6 +196,7 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.content[0].amountIdr").value(150000.00))
                 .andExpect(jsonPath("$.data.content[0].paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.content[0].status").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.content[0].paymentUrl").value("https://pay.xendit.co/inv-history"))
                 .andExpect(jsonPath("$.data.page").value(0))
                 .andExpect(jsonPath("$.data.size").value(20))
                 .andExpect(jsonPath("$.data.totalElements").value(1))
@@ -148,7 +204,12 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.first").value(true))
                 .andExpect(jsonPath("$.data.last").value(true));
 
-        verify(topUpService).getMyTopUps(eq(admin), any(Pageable.class));
+        ArgumentCaptor<TopUpFilter> filterCaptor = ArgumentCaptor.forClass(TopUpFilter.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+
+        verify(topUpService).getMyTopUps(eq(admin), filterCaptor.capture(), pageableCaptor.capture());
+        assertEquals(PaymentTransactionStatus.SUCCESS, filterCaptor.getValue().status());
+        assertEquals("amountSawitDollar: ASC", pageableCaptor.getValue().getSort().toString());
     }
 
     @Test
@@ -165,6 +226,8 @@ class TopUpControllerTest {
                 .exchangeRate("1 SD = Rp 10,000")
                 .paymentGateway("XENDIT")
                 .gatewayReferenceId("inv-123")
+                .paymentUrl("https://pay.xendit.co/inv-123")
+                .expiresAt(updatedAt.plusHours(1))
                 .status(PaymentTransactionStatus.SUCCESS)
                 .createdAt(createdAt)
                 .updatedAt(updatedAt)
@@ -186,13 +249,14 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.data.exchangeRate").value("1 SD = Rp 10,000"))
                 .andExpect(jsonPath("$.data.paymentGateway").value("XENDIT"))
                 .andExpect(jsonPath("$.data.gatewayReferenceId").value("inv-123"))
+                .andExpect(jsonPath("$.data.paymentUrl").value("https://pay.xendit.co/inv-123"))
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"));
 
         verify(topUpService).getTopUpDetail(transactionId, admin);
     }
 
     @Test
-    void createTopUpForbidden() {
+    void createTopUpForbidden() throws Exception {
         when(topUpService.createTopUp(any(), any()))
                 .thenThrow(new ForbiddenException());
 
@@ -202,54 +266,46 @@ class TopUpControllerTest {
             }
             """;
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(post("/api/v1/topup")
+        mockMvc.perform(post("/api/v1/topup")
                         .requestAttr("userRole", "BURUH")
                         .requestAttr("userId", UUID.randomUUID().toString())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"))
+                .andExpect(jsonPath("$.timestamp").exists());
 
         verify(topUpService).createTopUp(any(), any());
     }
 
     @Test
-    void getMyTopUpsForbidden() {
-        when(topUpService.getMyTopUps(any(), any()))
+    void getMyTopUpsForbidden() throws Exception {
+        when(topUpService.getMyTopUps(any(), any(), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/topup")
+        mockMvc.perform(get("/api/v1/topup")
                         .requestAttr("userRole", "MANDOR")
                         .requestAttr("userId", UUID.randomUUID().toString()))
-        );
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
-
-        verify(topUpService).getMyTopUps(any(), any());
+        verify(topUpService).getMyTopUps(any(), any(), any());
     }
 
     @Test
-    void getTopUpDetailForbidden() {
+    void getTopUpDetailForbidden() throws Exception {
         UUID topupId = UUID.randomUUID();
         when(topUpService.getTopUpDetail(eq(topupId), any()))
                 .thenThrow(new ForbiddenException());
 
-        ServletException ex = assertThrows(ServletException.class, () ->
-                mockMvc.perform(get("/api/v1/topup/{topupId}", topupId)
+        mockMvc.perform(get("/api/v1/topup/{topupId}", topupId)
                         .requestAttr("userRole", "SUPIR_TRUK")
                         .requestAttr("userId", UUID.randomUUID().toString()))
-        );
-
-        assertNotNull(ex.getCause());
-        assertEquals(ForbiddenException.class, ex.getCause().getClass());
-        assertEquals("Forbidden", ex.getCause().getMessage());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Forbidden"));
 
         verify(topUpService).getTopUpDetail(eq(topupId), any());
     }
@@ -271,5 +327,40 @@ class TopUpControllerTest {
                 .andExpect(jsonPath("$.status").value("success"));
 
         verify(topUpService).handleXenditCallback(eq("callback-token"), any(XenditCallbackRequest.class));
+    }
+
+    @Test
+    void handleXenditCallbackShouldRejectMissingRequiredFields() throws Exception {
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
+    }
+
+    @Test
+    void handleXenditCallbackShouldRejectUnsupportedStatus() throws Exception {
+        String requestBody = """
+                {
+                  "id": "inv-123",
+                  "external_id": "2ff29187-c73d-4a9e-8060-f206e46a505a",
+                  "status": "PENDING",
+                  "amount": 100000
+                }
+                """;
+
+        mockMvc.perform(post("/api/v1/topup/callback")
+                        .header("x-callback-token", "callback-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value("error"))
+                .andExpect(jsonPath("$.message").value("Validation failed"));
+
+        verify(topUpService, never()).handleXenditCallback(any(), any());
     }
 }

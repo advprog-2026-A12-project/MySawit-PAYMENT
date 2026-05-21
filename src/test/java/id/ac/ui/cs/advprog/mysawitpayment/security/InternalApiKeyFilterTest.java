@@ -54,6 +54,9 @@ class InternalApiKeyFilterTest {
         assertTrue(Objects.requireNonNull(response.getContentType()).startsWith("application/json"));
         assertEquals("UTF-8", response.getCharacterEncoding());
         assertTrue(response.getContentAsString().contains("Invalid or missing internal API key"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
@@ -73,6 +76,9 @@ class InternalApiKeyFilterTest {
         assertTrue(Objects.requireNonNull(response.getContentType()).startsWith("application/json"));
         assertEquals("UTF-8", response.getCharacterEncoding());
         assertTrue(response.getContentAsString().contains("Invalid or missing internal API key"));
+        assertTrue(response.getContentAsString().contains("\"status\":\"error\""));
+        assertTrue(response.getContentAsString().contains("\"data\":null"));
+        assertTrue(response.getContentAsString().contains("\"timestamp\""));
 
         verify(chain, never()).doFilter(request, response);
     }
