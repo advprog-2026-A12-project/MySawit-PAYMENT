@@ -67,8 +67,157 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  payment-newman-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: mysawit_payment_ci
+          POSTGRES_USER: payment_user
+          POSTGRES_PASSWORD: payment_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U payment_user -d mysawit_payment_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # App URL for Newman
+      PAYMENT_CI_BASE_URL: http://localhost:8002/api/v1
+
+      # Spring database config used by the Payment app in CI.
+      DB_URL: jdbc:postgresql://localhost:5432/mysawit_payment_ci
+      DB_USERNAME: payment_user
+      DB_PASSWORD: payment_pass
+      SPRING_PROFILES_ACTIVE: test
+      SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/mysawit_payment_ci
+      SPRING_DATASOURCE_USERNAME: payment_user
+      SPRING_DATASOURCE_PASSWORD: payment_pass
+      INTERNAL_PATH_PREFIX: /api/v1/internal
+
+      # CI-only security values. Do not replace these with prod secrets:
+      # Newman reports can include request headers.
+      PAYMENT_CI_JWT_SECRET: c3VwZXJzZWNyZXRzdXBlcnNlY3JldHN1cGVyc2VjcmV0
+      INTERNAL_API_KEY: payment-ci-internal-key
+      XENDIT_WEBHOOK_TOKEN: payment-ci-xendit-callback-token
+
+      # Common alternative property names; harmless if your app ignores them.
+      JWT_SECRET: c3VwZXJzZWNyZXRzdXBlcnNlY3JldHN1cGVyc2VjcmV0
+      JWT_SECRET_KEY: c3VwZXJzZWNyZXRzdXBlcnNlY3JldHN1cGVyc2VjcmV0
+      APP_JWT_SECRET: c3VwZXJzZWNyZXRzdXBlcnNlY3JldHN1cGVyc2VjcmV0
+
+      # Xendit invoice creation is avoided by CI collection using a seeded top-up.
+      XENDIT_SECRET_KEY: ci-dummy-xendit-key
+      XENDIT_API_KEY: ci-dummy-xendit-key
+      XENDIT_CALLBACK_TOKEN: payment-ci-xendit-callback-token
+
+      # Fixed test identities matching generated JWTs and seed script.
+      PAYMENT_CI_ADMIN_ID: dfedfa3b-eff2-49a4-bd8b-a69925c0a005
+      PAYMENT_CI_BURUH_ID: dfedfa3b-eff2-49a4-bd8b-a69925c0a006
+      PAYMENT_CI_TOPUP_ID: 50000000-0000-0000-0000-00000000c001
+      PAYMENT_CI_CALLBACK_GATEWAY_ID: inv-ci-paid-001
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Install CI tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client curl
+          npm install -g newman newman-reporter-htmlextra
+
+      - name: Validate CI config is present
+        run: |
+          test -n "$PAYMENT_CI_JWT_SECRET" || (echo "Missing PAYMENT_CI_JWT_SECRET" && exit 1)
+          test -n "$INTERNAL_API_KEY" || (echo "Missing INTERNAL_API_KEY" && exit 1)
+          test -n "$XENDIT_WEBHOOK_TOKEN" || (echo "Missing XENDIT_WEBHOOK_TOKEN" && exit 1)
+          test -n "$SPRING_DATASOURCE_URL" || (echo "Missing SPRING_DATASOURCE_URL" && exit 1)
+
+      - name: Generate CI JWTs and Postman environment
+        run: |
+          python scripts/ci/generate-ci-jwts.py
+          python scripts/ci/generate-postman-env.py
+
+      - name: Build Payment app
+        run: ./gradlew clean bootJar
+
+      - name: Start Payment app
+        run: |
+          APP_JAR=$(ls build/libs/*.jar | grep -v plain | head -n 1)
+          echo "Starting $APP_JAR"
+          java -jar "$APP_JAR" --server.port=8002 > build/ci/payment-app.log 2>&1 &
+          echo $! > build/ci/payment-app.pid
+
+          echo "Waiting for app port 8002..."
+          for i in {1..60}; do
+            if bash -c '</dev/tcp/127.0.0.1/8002' 2>/dev/null; then
+              echo "App is reachable"
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "App failed to start. Last logs:"
+          tail -200 build/ci/payment-app.log || true
+          exit 1
+
+      - name: Seed CI database
+        run: |
+          psql -h localhost -p 5432 \
+            -U "$SPRING_DATASOURCE_USERNAME" \
+            -d mysawit_payment_ci \
+            -v ON_ERROR_STOP=1 \
+            -f scripts/ci/seed-payment-ci.sql
+        env:
+          PGPASSWORD: payment_pass
+
+      - name: Run Newman Payment functional + security regression
+        run: |
+          mkdir -p build/newman
+          newman run postman/MySawit-Payment.ci.postman_collection.json \
+            -e build/ci/MySawit-Payment.ci.postman_environment.json \
+            -r cli,junit,htmlextra \
+            --reporter-junit-export build/newman/payment-regression.xml \
+            --reporter-htmlextra-export build/newman/payment-regression.html
+
+      - name: Upload Newman report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-newman-regression-report
+          path: |
+            build/newman
+
+      - name: Upload app logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: payment-app-ci-logs
+          path: build/ci/payment-app.log
+
   deploy_staging:
-    needs: ci
+    needs: ci, payment-newman-regression
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
     steps:
@@ -102,7 +251,7 @@ jobs:
         run: git push heroku staging:main --force
 
   deploy_production:
-    needs: ci
+    needs: ci, payment-newman-regression
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     environment:
