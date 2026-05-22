@@ -80,7 +80,6 @@ public class JwtFilter implements Filter {
             return;
         }
 
-        // Make user info available to controllers
         request.setAttribute("userId", claims.getSubject());
         request.setAttribute("userRole", claims.get("role", String.class));
         request.setAttribute("userEmail", claims.get("email", String.class));

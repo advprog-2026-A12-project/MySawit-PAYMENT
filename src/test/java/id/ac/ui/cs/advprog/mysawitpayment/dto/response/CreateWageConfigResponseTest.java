@@ -71,11 +71,9 @@ class CreateWageConfigResponseTest {
 
         String json = objectMapper.writeValueAsString(response);
 
-        // nested previousConfig
         assertThat(json).contains("\"previousConfig\"");
         assertThat(json).contains(prevId.toString());
 
-        // nested updatedBy
         assertThat(json).contains("\"updatedBy\"");
         assertThat(json).contains(adminId.toString());
         assertThat(json).doesNotContain("\"name\":");
