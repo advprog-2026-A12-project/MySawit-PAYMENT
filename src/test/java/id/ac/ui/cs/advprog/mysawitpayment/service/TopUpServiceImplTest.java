@@ -21,21 +21,13 @@ import id.ac.ui.cs.advprog.mysawitpayment.model.enums.UserRole;
 import id.ac.ui.cs.advprog.mysawitpayment.repository.PaymentTransactionRepository;
 import id.ac.ui.cs.advprog.mysawitpayment.security.AuthenticatedUser;
 import id.ac.ui.cs.advprog.mysawitpayment.security.PaymentAuthorizationService;
-import jakarta.persistence.criteria.CriteriaBuilder;
-import jakarta.persistence.criteria.CriteriaQuery;
-import jakarta.persistence.criteria.Expression;
-import jakarta.persistence.criteria.Path;
-import jakarta.persistence.criteria.Predicate;
-import jakarta.persistence.criteria.Root;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -295,7 +287,11 @@ class TopUpServiceImplTest {
 
         Page<PaymentTransaction> page = new PageImpl<>(List.of(tx), pageable, 1);
         TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.SUCCESS);
-        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(page);
+        when(paymentTransactionRepository.findByAdminIdAndStatusOrderByCreatedAtDesc(
+                adminId,
+                PaymentTransactionStatus.SUCCESS,
+                pageable
+        )).thenReturn(page);
 
         Page<HistoryTopUpResponse> result = service.getMyTopUps(adminUser(adminId), filter, pageable);
 
@@ -310,70 +306,59 @@ class TopUpServiceImplTest {
         assertThat(item.getExpiresAt()).isEqualTo(now.plusHours(1));
         assertThat(item.getCreatedAt()).isEqualTo(tx.getCreatedAt());
         assertThat(item.getUpdatedAt()).isEqualTo(tx.getUpdatedAt());
+        verify(paymentTransactionRepository).findByAdminIdAndStatusOrderByCreatedAtDesc(
+                adminId,
+                PaymentTransactionStatus.SUCCESS,
+                pageable
+        );
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    void getMyTopUpsShouldBuildSpecificationWithStatusFilter() {
+    void getMyTopUpsShouldUseStatusOptimizedQueryWhenStatusFilterIsPresent() {
         UUID adminId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
         TopUpFilter filter = new TopUpFilter(PaymentTransactionStatus.EXPIRED);
 
-        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
-                .thenReturn(Page.empty(pageable));
+        when(paymentTransactionRepository.findByAdminIdAndStatusOrderByCreatedAtDesc(
+                adminId,
+                PaymentTransactionStatus.EXPIRED,
+                pageable
+        )).thenReturn(Page.empty(pageable));
 
         service.getMyTopUps(adminUser(adminId), filter, pageable);
 
-        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
-        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
-
-        Root<PaymentTransaction> root = mock(Root.class);
-        CriteriaQuery<?> query = mock(CriteriaQuery.class);
-        CriteriaBuilder cb = mock(CriteriaBuilder.class);
-        Path path = mock(Path.class);
-        Predicate predicate = mock(Predicate.class);
-
-        when(root.get(any(String.class))).thenReturn(path);
-        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
-        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
-
-        Predicate result = captor.getValue().toPredicate(root, query, cb);
-
-        assertThat(result).isNotNull();
-        verify(cb, times(2)).equal(any(Expression.class), any(Object.class));
-        verify(cb).and(any(Predicate[].class));
+        verify(paymentTransactionRepository).findByAdminIdAndStatusOrderByCreatedAtDesc(
+                adminId,
+                PaymentTransactionStatus.EXPIRED,
+                pageable
+        );
     }
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    void getMyTopUpsShouldBuildSpecificationWithoutStatusFilter() {
+    void getMyTopUpsShouldUseAdminOptimizedQueryWhenFilterIsNull() {
         UUID adminId = UUID.randomUUID();
         Pageable pageable = PageRequest.of(0, 10);
 
-        when(paymentTransactionRepository.findAll(any(Specification.class), eq(pageable)))
+        when(paymentTransactionRepository.findByAdminIdOrderByCreatedAtDesc(adminId, pageable))
                 .thenReturn(Page.empty(pageable));
 
         service.getMyTopUps(adminUser(adminId), null, pageable);
 
-        ArgumentCaptor<Specification<PaymentTransaction>> captor = ArgumentCaptor.forClass(Specification.class);
-        verify(paymentTransactionRepository).findAll(captor.capture(), eq(pageable));
+        verify(paymentTransactionRepository).findByAdminIdOrderByCreatedAtDesc(adminId, pageable);
+    }
 
-        Root<PaymentTransaction> root = mock(Root.class);
-        CriteriaQuery<?> query = mock(CriteriaQuery.class);
-        CriteriaBuilder cb = mock(CriteriaBuilder.class);
-        Path path = mock(Path.class);
-        Predicate predicate = mock(Predicate.class);
+    @Test
+    void getMyTopUpsShouldUseAdminOptimizedQueryWhenStatusFilterIsNull() {
+        UUID adminId = UUID.randomUUID();
+        Pageable pageable = PageRequest.of(0, 10);
+        TopUpFilter filter = new TopUpFilter(null);
 
-        when(root.get(any(String.class))).thenReturn(path);
-        when(cb.equal(any(Expression.class), any(Object.class))).thenReturn(predicate);
-        when(cb.and(any(Predicate[].class))).thenReturn(predicate);
+        when(paymentTransactionRepository.findByAdminIdOrderByCreatedAtDesc(adminId, pageable))
+                .thenReturn(Page.empty(pageable));
 
-        Predicate result = captor.getValue().toPredicate(root, query, cb);
+        service.getMyTopUps(adminUser(adminId), filter, pageable);
 
-        assertThat(result).isNotNull();
-        verify(cb).equal(any(Expression.class), eq(adminId));
-        verify(cb, times(1)).equal(any(Expression.class), any(Object.class));
-        verify(cb).and(any(Predicate[].class));
+        verify(paymentTransactionRepository).findByAdminIdOrderByCreatedAtDesc(adminId, pageable);
     }
 
     @Test
