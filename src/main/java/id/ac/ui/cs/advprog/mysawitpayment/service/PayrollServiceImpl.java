@@ -7,15 +7,12 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.RejectPayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDetailResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.AdminPayrollResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollDisbursementResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollUserResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollApprovedByResponse;
-import id.ac.ui.cs.advprog.mysawitpayment.dto.response.PayrollWalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.PayrollCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidPayrollRequestException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.mapper.PayrollResponseMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
@@ -44,10 +41,17 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PayrollServiceImpl implements PayrollService {
 
+    private static final BigDecimal PAYROLL_MULTIPLIER = BigDecimal.valueOf(0.90);
+    private static final String PAYROLL_DEDUCTION_REFERENCE_TYPE = "PAYROLL_DEDUCTION";
+    private static final String PAYROLL_DISBURSEMENT_REFERENCE_TYPE = "PAYROLL_DISBURSEMENT";
+    private static final String PAYROLL_DEDUCTION_DESCRIPTION = "Pengurangan saldo untuk pembayaran payroll";
+    private static final String PAYROLL_DISBURSEMENT_DESCRIPTION = "Pencairan payroll";
+
     private final PayrollRepository payrollRepository;
     private final WalletService walletService;
     private final WageConfigService wageConfigService;
     private final PaymentAuthorizationService authorizationService;
+    private final PayrollResponseMapper payrollResponseMapper;
 
     @Override
     public Page<AdminPayrollResponse> getAllPayrolls(
@@ -58,7 +62,7 @@ public class PayrollServiceImpl implements PayrollService {
         authorizationService.requireAdmin(requester);
 
         Page<Payroll> allPayrolls = payrollRepository.findAll(payrollSpec(filter), pageable);
-        return allPayrolls.map(this::mapToAdminResponse);
+        return allPayrolls.map(payrollResponseMapper::toAdminPayrollResponse);
     }
 
     @Override
@@ -78,7 +82,7 @@ public class PayrollServiceImpl implements PayrollService {
                 filter == null ? null : filter.dateTo()
         );
         Page<Payroll> myPayrolls = payrollRepository.findAll(payrollSpec(ownerFilter), pageable);
-        return myPayrolls.map(this::mapToResponse);
+        return myPayrolls.map(payrollResponseMapper::toPayrollResponse);
     }
 
     @Override
@@ -86,7 +90,7 @@ public class PayrollServiceImpl implements PayrollService {
         Payroll payroll = findPayrollOrThrow(payrollId);
         authorizationService.requirePayrollViewer(requester, payroll.getUserId());
 
-        return mapToDetailResponse(payroll);
+        return payrollResponseMapper.toPayrollDetailResponse(payroll);
     }
 
     @Override
@@ -100,17 +104,17 @@ public class PayrollServiceImpl implements PayrollService {
         WalletMutationResult adminWalletResult = walletService.debitWallet(
                 requester.id(),
                 payroll.getAmount(),
-                "PAYROLL_DEDUCTION",
+                PAYROLL_DEDUCTION_REFERENCE_TYPE,
                 payroll.getId(),
-                "Pengurangan saldo untuk pembayaran payroll"
+                PAYROLL_DEDUCTION_DESCRIPTION
         );
 
         WalletMutationResult workerWalletResult = walletService.creditWallet(
                 payroll.getUserId(),
                 payroll.getAmount(),
-                "PAYROLL_DISBURSEMENT",
+                PAYROLL_DISBURSEMENT_REFERENCE_TYPE,
                 payroll.getId(),
-                "Pencairan payroll"
+                PAYROLL_DISBURSEMENT_DESCRIPTION
         );
 
         payroll.setStatus(PayrollStatus.ACCEPTED);
@@ -119,7 +123,7 @@ public class PayrollServiceImpl implements PayrollService {
 
         Payroll savedPayroll = payrollRepository.save(payroll);
 
-        return mapToAcceptResponse(
+        return payrollResponseMapper.toAcceptPayrollResponse(
                 savedPayroll,
                 adminWalletResult,
                 workerWalletResult
@@ -139,7 +143,7 @@ public class PayrollServiceImpl implements PayrollService {
         payroll.setApprovedAt(OffsetDateTime.now(ZoneOffset.UTC));
         payroll.setRejectionReason(reason);
 
-        return mapToRejectResponse(payrollRepository.save(payroll));
+        return payrollResponseMapper.toRejectPayrollResponse(payrollRepository.save(payroll));
     }
 
     @Override
@@ -155,52 +159,59 @@ public class PayrollServiceImpl implements PayrollService {
 
         return payrollRepository
                 .findByReferenceTypeAndReferenceIdAndUserId(referenceType, referenceId, userId)
-                .map(existingPayroll -> PayrollCreationResponse.builder()
-                        .payrollId(existingPayroll.getId())
-                        .alreadyProcessed(true)
-                        .build())
+                .map(existingPayroll -> toPayrollCreationResponse(existingPayroll.getId(), true))
                 .orElseGet(() -> {
                     WageConfig activeConfig = wageConfigService.getActiveWageConfig();
 
-                    BigDecimal ratePerKg = resolveRatePerKg(userRole, activeConfig);
-                    BigDecimal multiplier = BigDecimal.valueOf(0.90);
-
-                    BigDecimal amount = ratePerKg
-                            .multiply(kilogram)
-                            .multiply(multiplier)
-                            .setScale(2, RoundingMode.HALF_UP);
-
-                    String description = buildPayrollDescription(userRole, kilogram, ratePerKg, amount);
                     UUID payrollId = UUID.randomUUID();
-                    Payroll payrollToInsert = Payroll.builder()
-                            .id(payrollId)
-                            .userId(userId)
-                            .userRole(userRole)
-                            .amount(amount)
-                            .kilogram(kilogram)
-                            .ratePerKg(ratePerKg)
-                            .multiplier(multiplier)
-                            .status(PayrollStatus.PENDING)
-                            .description(description)
-                            .referenceType(referenceType)
-                            .referenceId(referenceId)
-                            .build();
+                    Payroll payrollToInsert = buildPendingPayroll(request, payrollId, activeConfig);
 
                     int insertedRows = payrollRepository.insertIfAbsent(payrollToInsert);
 
                     if (insertedRows == 0) {
                         Payroll existingPayroll = findPayrollByReferenceOrThrow(referenceType, referenceId, userId);
-                        return PayrollCreationResponse.builder()
-                                .payrollId(existingPayroll.getId())
-                                .alreadyProcessed(true)
-                                .build();
+                        return toPayrollCreationResponse(existingPayroll.getId(), true);
                     }
 
-                    return PayrollCreationResponse.builder()
-                            .payrollId(payrollId)
-                            .alreadyProcessed(false)
-                            .build();
+                    return toPayrollCreationResponse(payrollId, false);
                 });
+    }
+
+    private Payroll buildPendingPayroll(
+            PayrollCreationRequest request,
+            UUID payrollId,
+            WageConfig activeConfig
+    ) {
+        BigDecimal ratePerKg = resolveRatePerKg(request.getUserRole(), activeConfig);
+        BigDecimal amount = calculatePayrollAmount(ratePerKg, request.getKilogram());
+
+        return Payroll.builder()
+                .id(payrollId)
+                .userId(request.getUserId())
+                .userRole(request.getUserRole())
+                .amount(amount)
+                .kilogram(request.getKilogram())
+                .ratePerKg(ratePerKg)
+                .multiplier(PAYROLL_MULTIPLIER)
+                .status(PayrollStatus.PENDING)
+                .description(buildPayrollDescription(request.getUserRole(), request.getKilogram(), ratePerKg, amount))
+                .referenceType(request.getReferenceType())
+                .referenceId(request.getReferenceId())
+                .build();
+    }
+
+    private BigDecimal calculatePayrollAmount(BigDecimal ratePerKg, BigDecimal kilogram) {
+        return ratePerKg
+                .multiply(kilogram)
+                .multiply(PAYROLL_MULTIPLIER)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private PayrollCreationResponse toPayrollCreationResponse(UUID payrollId, boolean alreadyProcessed) {
+        return PayrollCreationResponse.builder()
+                .payrollId(payrollId)
+                .alreadyProcessed(alreadyProcessed)
+                .build();
     }
 
     private BigDecimal resolveRatePerKg(UserRole userRole, WageConfig config) {
@@ -310,133 +321,4 @@ public class PayrollServiceImpl implements PayrollService {
         }
     }
 
-    private PayrollResponse mapToResponse(Payroll payroll) {
-
-        PayrollResponse response = new PayrollResponse();
-
-        response.setId(payroll.getId());
-        response.setAmount(payroll.getAmount());
-        response.setKilogram(payroll.getKilogram());
-        response.setRatePerKg(payroll.getRatePerKg());
-        response.setMultiplier(payroll.getMultiplier());
-        response.setStatus(payroll.getStatus().name());
-        response.setReferenceType(payroll.getReferenceType().name());
-        response.setDescription(payroll.getDescription());
-        response.setApprovedAt(payroll.getApprovedAt());
-        response.setCreatedAt(payroll.getCreatedAt());
-
-        return response;
-    }
-
-    private AdminPayrollResponse mapToAdminResponse(Payroll payroll) {
-
-        AdminPayrollResponse response = new AdminPayrollResponse();
-
-        PayrollUserResponse user = new PayrollUserResponse();
-
-        user.setId(payroll.getUserId());
-        user.setRole(payroll.getUserRole().name());
-
-        response.setId(payroll.getId());
-        response.setUser(user);
-        response.setAmount(payroll.getAmount());
-        response.setKilogram(payroll.getKilogram());
-        response.setRatePerKg(payroll.getRatePerKg());
-        response.setMultiplier(payroll.getMultiplier());
-        response.setStatus(payroll.getStatus().name());
-        response.setReferenceType(payroll.getReferenceType().name());
-        response.setReferenceId(payroll.getReferenceId());
-        response.setDescription(payroll.getDescription());
-        response.setCreatedAt(payroll.getCreatedAt());
-
-        return response;
-    }
-
-    private PayrollDetailResponse mapToDetailResponse(Payroll payroll) {
-        PayrollUserResponse user = new PayrollUserResponse();
-
-        user.setId(payroll.getUserId());
-        user.setRole(payroll.getUserRole().name());
-
-        PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
-
-        approvedBy.setId(payroll.getApprovedBy());
-
-        PayrollDetailResponse response = new PayrollDetailResponse();
-
-        response.setId(payroll.getId());
-        response.setUser(user);
-        response.setAmount(payroll.getAmount());
-        response.setKilogram(payroll.getKilogram());
-        response.setRatePerKg(payroll.getRatePerKg());
-        response.setMultiplier(payroll.getMultiplier());
-        response.setStatus(payroll.getStatus().name());
-        response.setDescription(payroll.getDescription());
-        response.setRejectionReason(payroll.getRejectionReason());
-        response.setReferenceType(payroll.getReferenceType().name());
-        response.setReferenceId(payroll.getReferenceId());
-        response.setApprovedBy(approvedBy);
-        response.setApprovedAt(payroll.getApprovedAt());
-        response.setCreatedAt(payroll.getCreatedAt());
-        response.setUpdatedAt(payroll.getUpdatedAt());
-
-        return response;
-    }
-
-    private AcceptPayrollResponse mapToAcceptResponse(
-            Payroll payroll,
-            WalletMutationResult adminWalletResult,
-            WalletMutationResult workerWalletResult
-    ) {
-        PayrollUserResponse user = new PayrollUserResponse();
-        user.setId(payroll.getUserId());
-        user.setRole(payroll.getUserRole().name());
-
-        PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
-        approvedBy.setId(payroll.getApprovedBy());
-
-        PayrollWalletResponse adminWallet = new PayrollWalletResponse();
-        adminWallet.setBalanceBefore(adminWalletResult.getBalanceBefore());
-        adminWallet.setBalanceAfter(adminWalletResult.getBalanceAfter());
-
-        PayrollWalletResponse workerWallet = new PayrollWalletResponse();
-        workerWallet.setBalanceBefore(workerWalletResult.getBalanceBefore());
-        workerWallet.setBalanceAfter(workerWalletResult.getBalanceAfter());
-
-        PayrollDisbursementResponse disbursement = new PayrollDisbursementResponse();
-        disbursement.setAdminWallet(adminWallet);
-        disbursement.setWorkerWallet(workerWallet);
-
-        AcceptPayrollResponse response = new AcceptPayrollResponse();
-        response.setId(payroll.getId());
-        response.setUser(user);
-        response.setAmount(payroll.getAmount());
-        response.setStatus(payroll.getStatus().name());
-        response.setApprovedBy(approvedBy);
-        response.setApprovedAt(payroll.getApprovedAt());
-        response.setDisbursement(disbursement);
-
-        return response;
-    }
-
-    private RejectPayrollResponse mapToRejectResponse(Payroll payroll) {
-        PayrollUserResponse user = new PayrollUserResponse();
-        user.setId(payroll.getUserId());
-        user.setRole(payroll.getUserRole().name());
-
-        PayrollApprovedByResponse approvedBy = new PayrollApprovedByResponse();
-        approvedBy.setId(payroll.getApprovedBy());
-
-        RejectPayrollResponse response = new RejectPayrollResponse();
-
-        response.setId(payroll.getId());
-        response.setUser(user);
-        response.setAmount(payroll.getAmount());
-        response.setStatus(payroll.getStatus().name());
-        response.setRejectionReason(payroll.getRejectionReason());
-        response.setApprovedBy(approvedBy);
-        response.setApprovedAt(payroll.getApprovedAt());
-
-        return response;
-    }
 }
