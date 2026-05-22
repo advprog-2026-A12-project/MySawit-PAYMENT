@@ -1,0 +1,203 @@
+2026-05-22 10:25:25,974 INFO o.a.j.u.JMeterUtils: Setting Locale to en_EN
+2026-05-22 10:25:25,994 INFO o.a.j.JMeter: Loading user properties from: C:\Users\LENOVO\Downloads\apache-jmeter-5.6.3\apache-jmeter-5.6.3\bin\user.properties
+2026-05-22 10:25:25,996 INFO o.a.j.JMeter: Loading system properties from: system.properties
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: Copyright (c) 1998-2024 The Apache Software Foundation
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: Version 5.6.3
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: java.version=21.0.10
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: java.vm.name=Java HotSpot(TM) 64-Bit Server VM
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: os.name=Windows 11
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: os.arch=amd64
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: os.version=10.0
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: file.encoding=UTF-8
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: java.awt.headless=true
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: Max memory     =1073741824
+2026-05-22 10:25:26,012 INFO o.a.j.JMeter: Available Processors =22
+2026-05-22 10:25:26,022 INFO o.a.j.JMeter: Default Locale=English (EN)
+2026-05-22 10:25:26,022 INFO o.a.j.JMeter: JMeter  Locale=English (EN)
+2026-05-22 10:25:26,022 INFO o.a.j.JMeter: JMeterHome=C:\Users\LENOVO\Downloads\apache-jmeter-5.6.3\apache-jmeter-5.6.3
+2026-05-22 10:25:26,022 INFO o.a.j.JMeter: user.dir  =D:\Kuliah\Semester 4\Pemrograman Lanjut\Tugas Kelompok\MySawit\MySawit-PAYMENT
+2026-05-22 10:25:26,022 INFO o.a.j.JMeter: PWD       =D:\Kuliah\Semester 4\Pemrograman Lanjut\Tugas Kelompok\MySawit\MySawit-PAYMENT
+2026-05-22 10:25:26,027 INFO o.a.j.JMeter: IP: 172.20.10.4 Name: LAPTOP-IKD3MGQO FullName: LAPTOP-IKD3MGQO
+2026-05-22 10:25:26,046 INFO o.a.j.s.FileServer: Default base='D:\Kuliah\Semester 4\Pemrograman Lanjut\Tugas Kelompok\MySawit\MySawit-PAYMENT'
+2026-05-22 10:25:26,053 INFO o.a.j.s.FileServer: Set new base='D:\Kuliah\Semester 4\Pemrograman Lanjut\Tugas Kelompok\MySawit\MySawit-PAYMENT\.\concurrency-test'
+2026-05-22 10:25:26,256 INFO o.a.j.s.SaveService: Testplan (JMX) version: 2.2. Testlog (JTL) version: 2.2
+2026-05-22 10:25:26,369 INFO o.a.j.s.SaveService: Using SaveService properties version 5.0
+2026-05-22 10:25:26,373 INFO o.a.j.s.SaveService: Using SaveService properties file encoding UTF-8
+2026-05-22 10:25:26,378 INFO o.a.j.s.SaveService: Loading file: .\concurrency-test\internal-payroll-concurrency.jmx
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/html is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xhtml+xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for application/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/xml is org.apache.jmeter.protocol.http.parser.LagartoBasedHtmlParser
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/vnd.wap.wml is org.apache.jmeter.protocol.http.parser.RegexpHTMLParser
+2026-05-22 10:25:26,473 INFO o.a.j.p.h.s.HTTPSamplerBase: Parser for text/css is org.apache.jmeter.protocol.http.parser.CssParser
+2026-05-22 10:25:26,483 INFO o.a.j.JMeter: Creating summariser <summary>
+2026-05-22 10:25:26,515 INFO o.a.j.e.StandardJMeterEngine: Running the test!
+2026-05-22 10:25:26,515 INFO o.a.j.s.SampleEvent: List of sample_variables: []
+2026-05-22 10:25:26,519 INFO o.a.j.s.SampleEvent: List of sample_variables: []
+2026-05-22 10:25:26,523 INFO o.a.j.e.u.CompoundVariable: Note: Function class names must contain the string: '.functions.'
+2026-05-22 10:25:26,525 INFO o.a.j.e.u.CompoundVariable: Note: Function class names must not contain the string: '.gui.'
+2026-05-22 10:25:26,626 INFO o.a.j.JMeter: Running test (1779420326626)
+2026-05-22 10:25:26,645 INFO o.a.j.e.StandardJMeterEngine: Starting ThreadGroup: 1 : 50 Duplicate Internal Payroll
+2026-05-22 10:25:26,645 INFO o.a.j.e.StandardJMeterEngine: Starting 50 threads for group 50 Duplicate Internal Payroll.
+2026-05-22 10:25:26,645 INFO o.a.j.e.StandardJMeterEngine: Thread will continue on error
+2026-05-22 10:25:26,645 INFO o.a.j.t.ThreadGroup: Starting thread group... number=1 threads=50 ramp-up=0 delayedStart=false
+2026-05-22 10:25:26,651 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-5
+2026-05-22 10:25:26,653 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-1
+2026-05-22 10:25:26,651 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-2
+2026-05-22 10:25:26,653 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-4
+2026-05-22 10:25:26,654 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-3
+2026-05-22 10:25:26,654 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-6
+2026-05-22 10:25:26,656 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-8
+2026-05-22 10:25:26,656 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-9
+2026-05-22 10:25:26,657 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-10
+2026-05-22 10:25:26,657 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-11
+2026-05-22 10:25:26,657 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-12
+2026-05-22 10:25:26,658 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-14
+2026-05-22 10:25:26,658 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-15
+2026-05-22 10:25:26,658 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-7
+2026-05-22 10:25:26,660 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-13
+2026-05-22 10:25:26,661 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-17
+2026-05-22 10:25:26,662 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-18
+2026-05-22 10:25:26,662 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-16
+2026-05-22 10:25:26,663 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-19
+2026-05-22 10:25:26,665 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-20
+2026-05-22 10:25:26,668 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-23
+2026-05-22 10:25:26,669 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-21
+2026-05-22 10:25:26,667 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-22
+2026-05-22 10:25:26,669 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-25
+2026-05-22 10:25:26,669 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-24
+2026-05-22 10:25:26,673 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-27
+2026-05-22 10:25:26,673 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-28
+2026-05-22 10:25:26,673 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-26
+2026-05-22 10:25:26,676 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-30
+2026-05-22 10:25:26,676 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-31
+2026-05-22 10:25:26,677 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-32
+2026-05-22 10:25:26,678 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-33
+2026-05-22 10:25:26,678 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-34
+2026-05-22 10:25:26,679 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-29
+2026-05-22 10:25:26,680 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-36
+2026-05-22 10:25:26,681 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-37
+2026-05-22 10:25:26,681 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-35
+2026-05-22 10:25:26,682 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-38
+2026-05-22 10:25:26,685 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-39
+2026-05-22 10:25:26,686 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-40
+2026-05-22 10:25:26,694 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-44
+2026-05-22 10:25:26,694 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-43
+2026-05-22 10:25:26,694 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-45
+2026-05-22 10:25:26,694 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-42
+2026-05-22 10:25:26,695 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-46
+2026-05-22 10:25:26,696 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-41
+2026-05-22 10:25:26,697 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-47
+2026-05-22 10:25:26,697 INFO o.a.j.t.ThreadGroup: Started thread group number 1
+2026-05-22 10:25:26,697 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-48
+2026-05-22 10:25:26,697 INFO o.a.j.e.StandardJMeterEngine: All thread groups have been started
+2026-05-22 10:25:26,697 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-50
+2026-05-22 10:25:26,697 INFO o.a.j.t.JMeterThread: Thread started: 50 Duplicate Internal Payroll 1-49
+2026-05-22 10:25:26,709 INFO o.a.j.p.h.s.HTTPHCAbstractImpl: Local host = LAPTOP-IKD3MGQO
+2026-05-22 10:25:26,715 INFO o.a.j.p.h.s.HTTPHC4Impl: HTTP request retry count = 0
+2026-05-22 10:25:26,716 INFO o.a.j.s.SampleResult: Note: Sample TimeStamps are START times
+2026-05-22 10:25:26,716 INFO o.a.j.s.SampleResult: sampleresult.default.encoding is set to UTF-8
+2026-05-22 10:25:26,716 INFO o.a.j.s.SampleResult: sampleresult.useNanoTime=true
+2026-05-22 10:25:26,716 INFO o.a.j.s.SampleResult: sampleresult.nanoThreadSleep=5000
+2026-05-22 10:25:27,336 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-30
+2026-05-22 10:25:27,337 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-46
+2026-05-22 10:25:27,337 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-30
+2026-05-22 10:25:27,337 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-46
+2026-05-22 10:25:27,338 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-4
+2026-05-22 10:25:27,338 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-4
+2026-05-22 10:25:27,336 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-29
+2026-05-22 10:25:27,338 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-29
+2026-05-22 10:25:27,338 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-33
+2026-05-22 10:25:27,340 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-33
+2026-05-22 10:25:27,340 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-44
+2026-05-22 10:25:27,340 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-24
+2026-05-22 10:25:27,341 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-24
+2026-05-22 10:25:27,340 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-44
+2026-05-22 10:25:27,341 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-27
+2026-05-22 10:25:27,341 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-27
+2026-05-22 10:25:27,341 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-19
+2026-05-22 10:25:27,341 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-19
+2026-05-22 10:25:27,346 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-37
+2026-05-22 10:25:27,346 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-37
+2026-05-22 10:25:27,354 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-45
+2026-05-22 10:25:27,354 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-45
+2026-05-22 10:25:27,355 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-18
+2026-05-22 10:25:27,355 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-18
+2026-05-22 10:25:27,356 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-34
+2026-05-22 10:25:27,356 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-34
+2026-05-22 10:25:27,356 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-7
+2026-05-22 10:25:27,358 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-7
+2026-05-22 10:25:27,367 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-35
+2026-05-22 10:25:27,367 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-35
+2026-05-22 10:25:27,368 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-15
+2026-05-22 10:25:27,368 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-15
+2026-05-22 10:25:27,371 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-25
+2026-05-22 10:25:27,371 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-25
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-41
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-41
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-38
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-11
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-11
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-8
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-38
+2026-05-22 10:25:27,381 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-8
+2026-05-22 10:25:27,385 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-20
+2026-05-22 10:25:27,385 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-20
+2026-05-22 10:25:27,391 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-21
+2026-05-22 10:25:27,391 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-21
+2026-05-22 10:25:27,396 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-36
+2026-05-22 10:25:27,396 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-14
+2026-05-22 10:25:27,396 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-36
+2026-05-22 10:25:27,396 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-14
+2026-05-22 10:25:27,398 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-23
+2026-05-22 10:25:27,398 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-23
+2026-05-22 10:25:27,400 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-50
+2026-05-22 10:25:27,400 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-50
+2026-05-22 10:25:27,407 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-22
+2026-05-22 10:25:27,407 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-22
+2026-05-22 10:25:27,407 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-43
+2026-05-22 10:25:27,407 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-43
+2026-05-22 10:25:27,413 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-17
+2026-05-22 10:25:27,414 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-17
+2026-05-22 10:25:27,414 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-42
+2026-05-22 10:25:27,414 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-42
+2026-05-22 10:25:27,417 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-10
+2026-05-22 10:25:27,417 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-10
+2026-05-22 10:25:27,422 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-40
+2026-05-22 10:25:27,422 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-40
+2026-05-22 10:25:27,429 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-5
+2026-05-22 10:25:27,430 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-5
+2026-05-22 10:25:27,430 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-12
+2026-05-22 10:25:27,430 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-12
+2026-05-22 10:25:27,431 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-31
+2026-05-22 10:25:27,431 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-31
+2026-05-22 10:25:27,431 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-3
+2026-05-22 10:25:27,431 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-3
+2026-05-22 10:25:27,441 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-6
+2026-05-22 10:25:27,442 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-6
+2026-05-22 10:25:27,444 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-47
+2026-05-22 10:25:27,444 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-47
+2026-05-22 10:25:27,444 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-28
+2026-05-22 10:25:27,444 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-28
+2026-05-22 10:25:27,448 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-13
+2026-05-22 10:25:27,448 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-13
+2026-05-22 10:25:27,454 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-39
+2026-05-22 10:25:27,454 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-39
+2026-05-22 10:25:27,455 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-1
+2026-05-22 10:25:27,456 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-1
+2026-05-22 10:25:27,455 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-2
+2026-05-22 10:25:27,456 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-2
+2026-05-22 10:25:27,456 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-49
+2026-05-22 10:25:27,456 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-49
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-48
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-48
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-26
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-16
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-9
+2026-05-22 10:25:27,461 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-16
+2026-05-22 10:25:27,461 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-9
+2026-05-22 10:25:27,460 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-26
+2026-05-22 10:25:27,471 INFO o.a.j.t.JMeterThread: Thread is done: 50 Duplicate Internal Payroll 1-32
+2026-05-22 10:25:27,471 INFO o.a.j.t.JMeterThread: Thread finished: 50 Duplicate Internal Payroll 1-32
+2026-05-22 10:25:27,472 INFO o.a.j.e.StandardJMeterEngine: Notifying test listeners of end of test
+2026-05-22 10:25:27,474 INFO o.a.j.r.Summariser: summary =     50 in 00:00:01 =   59.0/s Avg:   528 Min:   462 Max:   594 Err:     0 (0.00%)
