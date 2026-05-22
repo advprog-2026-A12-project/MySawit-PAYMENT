@@ -66,6 +66,8 @@ public class TopUpServiceImpl implements TopUpService {
 
     private final PaymentAuthorizationService authorizationService;
 
+    private final ObjectMapper objectMapper;
+
     @Override
     @Transactional
     public CreateTopUpResponse createTopUp(CreateTopUpRequest request, AuthenticatedUser requester) {
@@ -137,12 +139,8 @@ public class TopUpServiceImpl implements TopUpService {
 
         validateCallbackMatchesTransaction(transaction, request);
 
-        ObjectMapper mapper = new ObjectMapper();
-
-        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
-
         @SuppressWarnings("unchecked")
-        Map<String, Object> payloadMap = mapper.convertValue(request, Map.class);
+        Map<String, Object> payloadMap = objectMapper.convertValue(request, Map.class);
 
         PaymentTransactionStatus requestedStatus = mapCallbackStatus(callbackStatus);
 

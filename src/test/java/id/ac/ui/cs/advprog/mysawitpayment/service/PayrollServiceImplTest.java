@@ -13,6 +13,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.InvalidPayrollRequestException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollAlreadyProcessedException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.PayrollNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.mapper.PayrollResponseMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Payroll;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WageConfig;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.PayrollStatus;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -75,6 +77,9 @@ class PayrollServiceImplTest {
 
     @Mock
     private PaymentAuthorizationService authorizationService;
+
+    @Spy
+    private PayrollResponseMapper payrollResponseMapper = new PayrollResponseMapper();
 
     @InjectMocks
     private PayrollServiceImpl payrollService;
@@ -638,7 +643,8 @@ class PayrollServiceImplTest {
                 payrollRepository,
                 walletService,
                 wageConfigService,
-                new PaymentAuthorizationService()
+                new PaymentAuthorizationService(),
+                payrollResponseMapper
         );
 
         UUID payrollId = UUID.randomUUID();
@@ -660,7 +666,8 @@ class PayrollServiceImplTest {
                 payrollRepository,
                 walletService,
                 wageConfigService,
-                new PaymentAuthorizationService()
+                new PaymentAuthorizationService(),
+                payrollResponseMapper
         );
 
         UUID adminId = UUID.randomUUID();
@@ -690,7 +697,8 @@ class PayrollServiceImplTest {
                 payrollRepository,
                 walletService,
                 wageConfigService,
-                new PaymentAuthorizationService()
+                new PaymentAuthorizationService(),
+                payrollResponseMapper
         );
 
         AuthenticatedUser requester = payrollUser(otherUserId);

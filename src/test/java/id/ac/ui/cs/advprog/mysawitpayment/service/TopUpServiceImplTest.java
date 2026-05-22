@@ -1,5 +1,7 @@
 package id.ac.ui.cs.advprog.mysawitpayment.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import id.ac.ui.cs.advprog.mysawitpayment.client.PaymentGatewayClient;
 import id.ac.ui.cs.advprog.mysawitpayment.client.XenditProperties;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.request.CreateTopUpRequest;
@@ -77,7 +79,8 @@ class TopUpServiceImplTest {
                 paymentGatewayClient,
                 xenditProperties,
                 walletService,
-                authorizationService
+                authorizationService,
+                new ObjectMapper().registerModule(new JavaTimeModule())
         );
     }
 

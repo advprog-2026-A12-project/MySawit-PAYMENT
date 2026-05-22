@@ -6,6 +6,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.ForbiddenException;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.mapper.WalletResponseMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -69,6 +71,9 @@ class WalletServiceImplTest {
 
     @Mock
     private PaymentAuthorizationService authorizationService;
+
+    @Spy
+    private WalletResponseMapper walletResponseMapper = new WalletResponseMapper();
 
     @InjectMocks
     private WalletServiceImpl walletService;
