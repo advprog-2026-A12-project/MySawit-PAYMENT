@@ -8,6 +8,7 @@ import id.ac.ui.cs.advprog.mysawitpayment.dto.response.WalletTransactionResponse
 import id.ac.ui.cs.advprog.mysawitpayment.dto.response.internal.WalletCreationResponse;
 import id.ac.ui.cs.advprog.mysawitpayment.dto.result.WalletMutationResult;
 import id.ac.ui.cs.advprog.mysawitpayment.exception.WalletNotFoundException;
+import id.ac.ui.cs.advprog.mysawitpayment.mapper.WalletResponseMapper;
 import id.ac.ui.cs.advprog.mysawitpayment.model.Wallet;
 import id.ac.ui.cs.advprog.mysawitpayment.model.WalletTransaction;
 import id.ac.ui.cs.advprog.mysawitpayment.model.enums.TransactionType;
@@ -36,17 +37,18 @@ public class WalletServiceImpl implements WalletService {
     private final WalletRepository walletRepository;
     private final WalletTransactionRepository walletTransactionRepository;
     private final PaymentAuthorizationService authorizationService;
+    private final WalletResponseMapper walletResponseMapper;
 
     @Override
     public WalletResponse getMyWallet(AuthenticatedUser requester) {
         authorizationService.requireOwnWalletAccess(requester);
-        return mapToMyWalletResponse(findWalletOrThrow(requester.id()));
+        return walletResponseMapper.toWalletResponse(findWalletOrThrow(requester.id()));
     }
 
     @Override
     public AdminWalletResponse getWalletByUserId(AuthenticatedUser requester, UUID userId) {
         authorizationService.requireAdminWalletViewer(requester);
-        return mapToAdminWalletResponse(findWalletOrThrow(userId));
+        return walletResponseMapper.toAdminWalletResponse(findWalletOrThrow(userId));
     }
 
     @Override
@@ -59,7 +61,7 @@ public class WalletServiceImpl implements WalletService {
         UUID walletId = findWalletOrThrow(requester.id()).getId();
         Page<WalletTransaction> transactionPage =
                 walletTransactionRepository.findAll(walletTransactionSpec(walletId, filter), pageable);
-        return transactionPage.map(this::mapToWalletTransactionResponse);
+        return transactionPage.map(walletResponseMapper::toWalletTransactionResponse);
     }
 
     @Override
@@ -71,25 +73,47 @@ public class WalletServiceImpl implements WalletService {
             UUID referenceId,
             String description
     ) {
+        return mutateWallet(userId, amount, referenceType, referenceId, description, TransactionType.CREDIT);
+    }
 
+    @Override
+    @Transactional
+    public WalletMutationResult debitWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description
+    ) {
+        return mutateWallet(userId, amount, referenceType, referenceId, description, TransactionType.DEBIT);
+    }
+
+    private WalletMutationResult mutateWallet(
+            UUID userId,
+            BigDecimal amount,
+            String referenceType,
+            UUID referenceId,
+            String description,
+            TransactionType transactionType
+    ) {
         Wallet wallet = findWalletForUpdateOrThrow(userId);
         var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
                 referenceType,
                 referenceId,
-                TransactionType.CREDIT
+                transactionType
         );
         if (existingTransaction.isPresent()) {
             return mapToWalletMutationResult(existingTransaction.get());
         }
 
         BigDecimal balanceBefore = wallet.getBalance();
-        wallet.credit(amount);
+        applyWalletMutation(wallet, amount, transactionType);
         walletRepository.save(wallet);
         BigDecimal balanceAfter = wallet.getBalance();
 
         WalletTransaction walletTransaction = WalletTransaction.builder()
                 .walletId(wallet.getId())
-                .transactionType(TransactionType.CREDIT)
+                .transactionType(transactionType)
                 .amount(amount)
                 .balanceBefore(balanceBefore)
                 .balanceAfter(balanceAfter)
@@ -106,47 +130,13 @@ public class WalletServiceImpl implements WalletService {
                 .build();
     }
 
-    @Override
-    @Transactional
-    public WalletMutationResult debitWallet(
-            UUID userId,
-            BigDecimal amount,
-            String referenceType,
-            UUID referenceId,
-            String description
-    ) {
-        Wallet wallet = findWalletForUpdateOrThrow(userId);
-        var existingTransaction = walletTransactionRepository.findByReferenceTypeAndReferenceIdAndTransactionType(
-                referenceType,
-                referenceId,
-                TransactionType.DEBIT
-        );
-        if (existingTransaction.isPresent()) {
-            return mapToWalletMutationResult(existingTransaction.get());
+    private void applyWalletMutation(Wallet wallet, BigDecimal amount, TransactionType transactionType) {
+        if (TransactionType.CREDIT.equals(transactionType)) {
+            wallet.credit(amount);
+            return;
         }
 
-        BigDecimal balanceBefore = wallet.getBalance();
         wallet.debit(amount);
-        walletRepository.save(wallet);
-        BigDecimal balanceAfter = wallet.getBalance();
-
-        WalletTransaction walletTransaction = WalletTransaction.builder()
-                .walletId(wallet.getId())
-                .transactionType(TransactionType.DEBIT)
-                .amount(amount)
-                .balanceBefore(balanceBefore)
-                .balanceAfter(balanceAfter)
-                .referenceType(referenceType)
-                .referenceId(referenceId)
-                .description(description)
-                .build();
-
-        walletTransactionRepository.save(walletTransaction);
-
-        return WalletMutationResult.builder()
-                .balanceBefore(balanceBefore)
-                .balanceAfter(balanceAfter)
-                .build();
     }
 
     @Override
@@ -231,42 +221,6 @@ public class WalletServiceImpl implements WalletService {
         if (filter.dateTo() != null) {
             predicates.add(cb.lessThan(path, filter.dateTo()));
         }
-    }
-
-    private WalletResponse mapToMyWalletResponse(Wallet wallet) {
-        WalletResponse response = new WalletResponse();
-        response.setId(wallet.getId());
-        response.setUserId(wallet.getUserId());
-        response.setBalance(wallet.getBalance());
-        response.setCreatedAt(wallet.getCreatedAt());
-        response.setCurrency("SawitDollar");
-        response.setUpdatedAt(wallet.getUpdatedAt());
-        return response;
-    }
-
-    private AdminWalletResponse mapToAdminWalletResponse(Wallet wallet) {
-        AdminWalletResponse response = new AdminWalletResponse();
-        response.setId(wallet.getId());
-        response.setUserId(wallet.getUserId());
-        response.setBalance(wallet.getBalance());
-        response.setCreatedAt(wallet.getCreatedAt());
-        response.setCurrency("SawitDollar");
-        response.setUpdatedAt(wallet.getUpdatedAt());
-        return response;
-    }
-
-    private WalletTransactionResponse mapToWalletTransactionResponse(WalletTransaction walletTransaction) {
-        WalletTransactionResponse response = new WalletTransactionResponse();
-        response.setId(walletTransaction.getId());
-        response.setTransactionType(walletTransaction.getTransactionType().name());
-        response.setAmount(walletTransaction.getAmount());
-        response.setBalanceBefore(walletTransaction.getBalanceBefore());
-        response.setBalanceAfter(walletTransaction.getBalanceAfter());
-        response.setReferenceType(walletTransaction.getReferenceType());
-        response.setReferenceId(walletTransaction.getReferenceId());
-        response.setDescription(walletTransaction.getDescription());
-        response.setCreatedAt(walletTransaction.getCreatedAt());
-        return response;
     }
 
 }
